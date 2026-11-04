@@ -16,7 +16,14 @@ const schema = z.object({
   CRON_ENABLED: z.string().default('true'),
 });
 
-const env = schema.parse(process.env);
+const parsed = schema.safeParse(process.env);
+if (!parsed.success) {
+  // Mensagem clara no log do Railway em vez de stack do zod
+  const missing = parsed.error.issues.map((i) => `${i.path.join('.')}: ${i.message}`).join('\n  - ');
+  console.error(`\n[config] Variáveis de ambiente faltando ou inválidas:\n  - ${missing}\n\nDefina-as no serviço (Railway → Variables). Mínimo em produção: DATABASE_URL, JWT_SECRET (>= 16 caracteres), API_URL, FRONTEND_URL.\n`);
+  process.exit(1);
+}
+const env = parsed.data;
 
 export const config = {
   env: env.NODE_ENV,
