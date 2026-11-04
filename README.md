@@ -86,6 +86,13 @@ web/
 
 ## Deploy (Railway + Vercel)
 
+**Piloto Feeling em produção (2026-11-04):** front https://feeling-colab.vercel.app · API https://server-production-6939.up.railway.app
+(projeto Railway `skillful-motivation`, serviços `server` + `Postgres`). O `web/vercel.json` faz proxy de `/api/*` para a API, então
+a Vercel não precisa de `VITE_API_URL`. O start do serviço roda migrations + seed idempotente + API.
+
+Armadilha: com `NODE_ENV=production` o Railway usa `npm ci` sem devDependencies e o `tsc` some do build (exit 127).
+Solução aplicada: variável `NPM_CONFIG_INCLUDE=dev` no serviço.
+
 Pré-requisitos uma vez: `railway login` e `npm i -g vercel && vercel login`.
 
 **1. API no Railway** (na raiz do repo)
