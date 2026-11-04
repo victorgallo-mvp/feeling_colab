@@ -1,1 +1,6 @@
-{ "rewrites": [{ "source": "/((?!api/).*)", "destination": "/index.html" }] }
+{
+  "rewrites": [
+    { "source": "/api/:path*", "destination": "https://server-production-6939.up.railway.app/api/:path*" },
+    { "source": "/((?!api/).*)", "destination": "/index.html" }
+  ]
+}
