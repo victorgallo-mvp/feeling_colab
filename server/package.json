@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "tsx watch src/index.ts",
     "build": "tsc -p tsconfig.json",
-    "start": "node-pg-migrate up -m migrations --no-check-order && node dist/index.js",
+    "start": "node-pg-migrate up -m migrations --no-check-order && node dist/seed.js && node dist/index.js",
     "migrate": "node-pg-migrate up -m migrations",
     "migrate:down": "node-pg-migrate down -m migrations",
     "seed": "tsx src/seed.ts",
