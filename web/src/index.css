@@ -1,0 +1,132 @@
+@import "tailwindcss";
+@import "@fontsource-variable/inter";
+@import "@fontsource-variable/big-shoulders-display";
+
+/*
+ * Tokens semânticos. O tenant define: tema (light/dark), cor da marca e fonte de títulos.
+ * Componentes só usam os tokens; nunca cores literais.
+ */
+:root {
+  --brand: #4f46e5;
+  --brand-fg: #ffffff;              /* texto sobre a cor da marca (calculado em runtime pela luminância) */
+  --brand-text: var(--brand);       /* marca usada como texto; em fundo claro é escurecida em runtime se não tiver contraste */
+  --brand-soft: color-mix(in oklab, var(--brand) 12%, white);
+  --surface: #fafaf9;
+  --card: #ffffff;
+  --card-2: #f5f5f4;
+  --fg: #1c1917;
+  --fg-2: #44403c;
+  --fg-muted: #78716c;
+  --fg-faint: #a8a29e;
+  --line: #e7e5e4;
+  --success: #16a34a;
+  --success-soft: #ecfdf5;
+  --success-fg: #15803d;
+  --warn: #d97706;
+  --warn-soft: #fffbeb;
+  --warn-fg: #b45309;
+  --danger: #e11d48;
+  --danger-soft: #fff1f2;
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+  --font-sans: "Inter Variable", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-display: var(--font-sans);
+  color-scheme: light;
+}
+
+[data-theme="dark"] {
+  --brand-soft: color-mix(in oklab, var(--brand) 16%, black);
+  --surface: #000000;
+  --card: #0e0e0e;
+  --card-2: #1a1a1a;
+  --fg: #ffffff;
+  --fg-2: #d6d6d6;
+  --fg-muted: #9b9b9b;
+  --fg-faint: #6a6a6a;
+  --line: #262626;
+  /* no escuro, sucesso usa a própria cor da marca: uma cor de destaque só */
+  --success: var(--brand);
+  --success-soft: color-mix(in oklab, var(--brand) 14%, black);
+  --success-fg: var(--brand);
+  --warn: #e5e5e5;
+  --warn-soft: #1f1f1f;
+  --warn-fg: #e5e5e5;
+  --danger: #ff5c5c;
+  --danger-soft: #2a1414;
+  --shadow: 0 1px 0 rgba(255, 255, 255, 0.03);
+  color-scheme: dark;
+}
+
+/* Claro com destaques pretos: mesmos tokens do claro; regiões .ink (cabeçalho, barra do ciclo, login) viram pretas */
+[data-theme="duo"] { --surface: #f7f7f6; }
+[data-theme="duo"] .ink {
+  --brand-soft: color-mix(in oklab, var(--brand) 18%, black);
+  --brand-text: var(--brand);
+  --surface: #000000;
+  --card: #0a0a0a;
+  --card-2: #1a1a1a;
+  --fg: #ffffff;
+  --fg-2: #d6d6d6;
+  --fg-muted: #9b9b9b;
+  --fg-faint: #6a6a6a;
+  --line: #262626;
+  --success: var(--brand);
+  --success-soft: color-mix(in oklab, var(--brand) 14%, black);
+  --success-fg: var(--brand);
+  --shadow: none;
+  color: var(--fg);
+  color-scheme: dark;
+}
+
+[data-display="big-shoulders"] {
+  --font-display: "Big Shoulders Display Variable", "Inter Variable", ui-sans-serif, sans-serif;
+}
+
+@theme inline {
+  --color-brand: var(--brand);
+  --color-brand-fg: var(--brand-fg);
+  --color-brand-text: var(--brand-text);
+  --color-brand-soft: var(--brand-soft);
+  --color-surface: var(--surface);
+  --color-card: var(--card);
+  --color-card-2: var(--card-2);
+  --color-fg: var(--fg);
+  --color-fg-2: var(--fg-2);
+  --color-fg-muted: var(--fg-muted);
+  --color-fg-faint: var(--fg-faint);
+  --color-line: var(--line);
+  --color-success: var(--success);
+  --color-success-soft: var(--success-soft);
+  --color-success-fg: var(--success-fg);
+  --color-warn: var(--warn);
+  --color-warn-soft: var(--warn-soft);
+  --color-warn-fg: var(--warn-fg);
+  --color-danger: var(--danger);
+  --color-danger-soft: var(--danger-soft);
+  --font-sans: var(--font-sans);
+  --font-display: var(--font-display);
+}
+
+html, body { height: 100%; }
+body { @apply bg-surface text-fg antialiased; font-family: var(--font-sans); font-feature-settings: "cv11", "ss01"; }
+button { cursor: pointer; }
+button:disabled { cursor: not-allowed; }
+
+.card { @apply rounded-2xl border border-line bg-card; box-shadow: var(--shadow); }
+.focus-ring { @apply outline-none focus-visible:ring-2 focus-visible:ring-brand/50 focus-visible:ring-offset-1 focus-visible:ring-offset-surface; }
+
+/* Títulos: fonte de display do tenant. Com Big Shoulders, caixa alta e peso pesado como no manual. */
+.font-display { font-family: var(--font-display); }
+[data-display="big-shoulders"] .font-display { text-transform: uppercase; letter-spacing: 0.01em; font-weight: 800; }
+[data-display="big-shoulders"] .font-display.text-base { font-size: 1.125rem; }
+[data-display="big-shoulders"] .font-display.text-2xl { font-size: 1.9rem; line-height: 1; }
+
+/* Efeitos de marca (luz difusa + grid), só onde ativados e só no escuro */
+[data-theme="dark"] .brand-glow, [data-theme="duo"] .ink.brand-glow, [data-theme="duo"] .ink .brand-glow { background-image: radial-gradient(60% 50% at 70% 10%, color-mix(in oklab, var(--brand) 22%, transparent), transparent 70%); }
+[data-theme="dark"] .brand-grid, [data-theme="duo"] .ink.brand-grid, [data-theme="duo"] .ink .brand-grid { background-image: linear-gradient(color-mix(in oklab, var(--fg) 5%, transparent) 1px, transparent 1px), linear-gradient(90deg, color-mix(in oklab, var(--fg) 5%, transparent) 1px, transparent 1px); background-size: 32px 32px; }
+
+@keyframes pop { 0% { transform: scale(0.96); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
+.animate-pop { animation: pop 160ms ease-out; }
+@keyframes slide-up { from { transform: translateY(8px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+.animate-slide-up { animation: slide-up 200ms ease-out; }
+.flash { animation: flash-bg 1.6s ease-out; }
+@keyframes flash-bg { 0% { background-color: var(--brand-soft); } 100% { background-color: transparent; } }
