@@ -8,8 +8,8 @@ import { timeAgo } from '../../lib/format';
 import { useAuth } from '../../lib/auth';
 import { PhotoPicker } from '../../features/profile/PhotoPicker';
 
-/** Admin mínimo: pessoas e marca/acesso. O resto do motor (temporadas, missões, prêmios) segue na API, fora da interface. */
-const TABS = [['usuarios', 'Pessoas'], ['marca', 'Marca & acesso']] as const;
+/** Admin mínimo: pessoas, prêmios da roleta e marca/acesso. O resto do motor (temporadas, missões, prêmios) segue na API, fora da interface. */
+const TABS = [['usuarios', 'Pessoas'], ['roleta', 'Roleta'], ['marca', 'Marca & acesso']] as const;
 
 export function AdminPage() {
   const [params, setParams] = useSearchParams();
@@ -20,6 +20,7 @@ export function AdminPage() {
         {TABS.map(([k, label]) => <button key={k} onClick={() => setParams({ tab: k })} className={`focus-ring rounded-lg px-3 py-1.5 font-medium transition ${tab === k ? 'bg-fg text-surface' : 'text-fg-2 hover:bg-card-2'}`}>{label}</button>)}
       </nav>
       {tab === 'usuarios' && <UsersPanel />}
+      {tab === 'roleta' && <WheelPanel />}
       {tab === 'marca' && <SettingsPanel />}
     </div>
   );
@@ -129,5 +130,67 @@ function SettingsPanel() {
         <div className="mt-4 flex justify-end"><Button type="submit" loading={save.isPending}>Salvar</Button></div>
       </Section>
     </form>
+  );
+}
+
+// ---------------- Roleta ----------------
+function WheelPanel() {
+  const rewards = useQuery<any[]>({ queryKey: ['rewards'], queryFn: () => api('/admin/rewards') });
+  const spins = useQuery<any[]>({ queryKey: ['spins'], queryFn: () => api('/admin/wheel/spins') });
+  const inv = useInvalidate([['rewards'], ['spins'], ['home']]);
+  const toast = useToast();
+  const [edit, setEdit] = useState<any | null>(null);
+  const save = useMutation({
+    mutationFn: (r: any) => r.id ? api(`/admin/rewards/${r.id}`, { method: 'PATCH', json: r }) : api('/admin/rewards', { method: 'POST', json: r }),
+    onSuccess: () => { inv(); setEdit(null); toast('Salvo'); }, onError: (e: any) => toast(e?.message, 'err'),
+  });
+  const toggle = useMutation({ mutationFn: ({ id, isActive }: any) => api(`/admin/rewards/${id}`, { method: 'PATCH', json: { isActive } }), onSuccess: inv });
+  const del = useMutation({ mutationFn: (id: string) => api(`/admin/rewards/${id}`, { method: 'DELETE' }), onSuccess: () => { inv(); setEdit(null); } });
+  const deliver = useMutation({ mutationFn: ({ id, delivered }: any) => api(`/admin/wheel/spins/${id}`, { method: 'PATCH', json: { delivered } }), onSuccess: inv });
+  const prizes = rewards.data?.filter((r) => r.kind === 'wheel') ?? [];
+  return (
+    <div className="space-y-4">
+      <Section title="Prêmios da roleta" subtitle="Toda segunda, quem mais recebeu moedas na semana anterior gira uma vez. O sorteio é no servidor, ponderado pelo peso: peso 4 sai 4x mais que peso 1. A entrega é combinada fora do app."
+        action={<Button size="sm" onClick={() => setEdit({ title: '', description: '', kind: 'wheel', weight: 1, isActive: true })}>+ Prêmio</Button>}>
+        {rewards.isLoading ? <Spinner /> : prizes.length === 0 ? <p className="text-sm text-fg-muted">Nenhum prêmio ainda. Sem prêmio, a roleta não aparece.</p> : (
+          <ul className="divide-y divide-line">
+            {prizes.map((r) => (
+              <li key={r.id} className={`flex items-center gap-3 py-2 text-sm ${r.is_active ? '' : 'opacity-50'}`}>
+                <div className="min-w-0 flex-1"><div className="truncate font-medium">{r.title}</div>{r.description && <div className="truncate text-xs text-fg-muted">{r.description}</div>}</div>
+                <span className="text-xs text-fg-muted" title="Peso no sorteio">peso {r.weight}</span>
+                <button className="focus-ring rounded-lg px-2 py-1 text-xs text-fg-2 hover:bg-card-2" onClick={() => setEdit({ id: r.id, title: r.title, description: r.description ?? '', kind: 'wheel', weight: r.weight, isActive: r.is_active })}>editar</button>
+                <button className="focus-ring rounded-lg px-2 py-1 text-xs text-fg-muted hover:bg-card-2" onClick={() => toggle.mutate({ id: r.id, isActive: !r.is_active })}>{r.is_active ? 'desativar' : 'ativar'}</button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </Section>
+      <Section title="Giros" subtitle="Quem ganhou, o que levou e se já foi entregue.">
+        {spins.data?.length === 0 && <p className="text-sm text-fg-muted">Ninguém girou ainda.</p>}
+        <ul className="divide-y divide-line">
+          {spins.data?.map((s) => (
+            <li key={s.id} className="flex items-center gap-3 py-2 text-sm">
+              <Avatar name={s.user_name} src={s.user_avatar} size={30} />
+              <div className="min-w-0 flex-1"><div className="truncate"><b>{s.user_name}</b> levou <b>{s.reward_title}</b></div><div className="text-xs text-fg-muted">semana {s.week_key} · {s.points} moedas · {timeAgo(s.spun_at)}</div></div>
+              <label className="flex items-center gap-1.5 text-xs"><input type="checkbox" checked={!!s.delivered_at} onChange={(e) => deliver.mutate({ id: s.id, delivered: e.target.checked })} /> entregue</label>
+            </li>
+          ))}
+        </ul>
+      </Section>
+      <Modal open={!!edit} onClose={() => setEdit(null)} title={edit?.id ? 'Editar prêmio' : 'Novo prêmio'}>
+        {edit && (
+          <form className="space-y-3" onSubmit={(e) => { e.preventDefault(); save.mutate({ ...edit, description: edit.description || null, weight: Number(edit.weight) }); }}>
+            <Field label="Título"><input className={inputCls} required minLength={2} maxLength={120} value={edit.title} onChange={(e) => setEdit({ ...edit, title: e.target.value })} placeholder="Ex.: Vale-presente R$ 200" autoFocus /></Field>
+            <Field label="Descrição (opcional)"><input className={inputCls} maxLength={300} value={edit.description} onChange={(e) => setEdit({ ...edit, description: e.target.value })} /></Field>
+            <Field label="Peso no sorteio" hint="1 = raro, 10 = comum"><input className={inputCls} type="number" min={1} max={100} value={edit.weight} onChange={(e) => setEdit({ ...edit, weight: e.target.value })} /></Field>
+            <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={edit.isActive} onChange={(e) => setEdit({ ...edit, isActive: e.target.checked })} /> Ativo</label>
+            <div className="flex items-center justify-between pt-2">
+              {edit.id ? <button type="button" className="text-xs text-danger hover:underline" onClick={() => del.mutate(edit.id)}>remover prêmio</button> : <span />}
+              <div className="flex gap-2"><Button type="button" variant="ghost" onClick={() => setEdit(null)}>Cancelar</Button><Button type="submit" loading={save.isPending}>Salvar</Button></div>
+            </div>
+          </form>
+        )}
+      </Modal>
+    </div>
   );
 }

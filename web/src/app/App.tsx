@@ -6,6 +6,7 @@ import { Layout } from './Layout';
 import { HomePage } from './pages/Home';
 import { AuthCallbackPage, LoginPage } from './pages/Login';
 import { AdminPage } from './pages/Admin';
+import { RankingPage } from './pages/Ranking';
 import { Spinner } from '../components/ui';
 
 const qc = new QueryClient({ defaultOptions: { queries: { retry: 1, staleTime: 10_000 } } });
@@ -29,6 +30,7 @@ export function App() {
               <Route path="/entrar" element={<LoginPage />} />
               <Route path="/auth/callback" element={<AuthCallbackPage />} />
               <Route path="/" element={<Private><HomePage /></Private>} />
+              <Route path="/ranking" element={<Private><RankingPage /></Private>} />
               <Route path="/admin" element={<Private admin><AdminPage /></Private>} />
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>

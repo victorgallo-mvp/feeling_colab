@@ -2,9 +2,10 @@
 
 > **Modo simples (nov/2026):** a interface foi reduzida a uma tela: clique na pessoa, dê uma moeda, texto opcional.
 > Sem motivos pré-definidos, sem saldo, sem limite por pessoa (só não vale para si mesmo), sem missões, ranking, roleta
-> ou temporadas na tela. O motor completo continua na API e no banco (tag git `v0-completo` guarda a interface antiga).
+> na tela. Ficaram, a pedido do CEO, a página **Ranking** (moedas recebidas na temporada, visível a todos) e a **Roleta da semana**
+> (quem mais recebeu moedas na semana anterior gira; prêmios em Admin → Roleta). O motor completo continua na API e no banco (tag git `v0-completo`).
 > No banco, `coins_per_cycle = 0` e `max_per_receiver_per_cycle = 0` significam "sem limite"; `chip_id` virou opcional.
-> Admin (`/admin`, só para role admin): Pessoas e Marca & acesso.
+> Admin (`/admin`, só para role admin): Pessoas, Roleta e Marca & acesso.
 
 
 Gamificação interna para PMEs de 10–50 pessoas. Nasce no piloto **Feeling**, mas nada de marca

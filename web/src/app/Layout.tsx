@@ -5,13 +5,14 @@ import { Avatar } from '../components/ui';
 import { logoFor } from '../lib/theme';
 import { UserProfileModal } from '../features/profile/UserProfileModal';
 
-/** Cabeçalho mínimo: marca, quem está logado (abre o perfil) e sair. Sem menu. */
+/** Cabeçalho mínimo: marca, um link (Ranking ou voltar), quem está logado (abre o perfil) e sair. */
 export function Layout({ children }: { children: React.ReactNode }) {
   const { me, logout } = useAuth();
   const loc = useLocation();
   const [profile, setProfile] = useState(false);
   const t = me?.tenant;
   const onAdmin = loc.pathname.startsWith('/admin');
+  const onHome = loc.pathname === '/';
   return (
     <div className="min-h-full">
       <header className="ink sticky top-0 z-40 bg-surface">
@@ -22,6 +23,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
           </Link>
           {me && (
             <div className="flex items-center gap-3 text-sm">
+              <Link to={onHome ? '/ranking' : '/'} className="focus-ring rounded-md px-1 text-sm text-fg-2 hover:text-fg">{onHome ? 'Ranking' : 'Dar moeda'}</Link>
               {me.user.role === 'admin' && (
                 <Link to={onAdmin ? '/' : '/admin'} className="focus-ring rounded-md px-1 text-xs text-fg-muted hover:text-fg">{onAdmin ? 'voltar' : 'admin'}</Link>
               )}

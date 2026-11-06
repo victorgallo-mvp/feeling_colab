@@ -8,11 +8,20 @@ export interface FeedItem {
   message: string | null; created_at: string; chip: Chip | null;
 }
 /** Só o que a tela única usa. A API devolve mais campos; eles são ignorados. */
+export interface RankRow { user_id: string; name: string; avatar_url: string | null; rank: number; points_total: number; recognitions_received: number }
+export interface Wheel {
+  week_key: string; can_spin: boolean;
+  winner: { user_id: string; name: string; avatar_url: string | null; points: number } | null;
+  spin: { id: string; user_id: string; reward_title: string; spun_at: string } | null;
+  prizes: { id: string; title: string; description: string | null; weight: number }[];
+}
 export interface Home {
   cycle: { id: string; name: string; recognition_cost: number };
-  me: { balance: number | null; given: number; recognitions_received: number };
+  me: { balance: number | null; given: number; recognitions_received: number; rank: number | null };
   colleagues: Colleague[];
   feed: FeedItem[];
+  ranking: RankRow[];
+  wheel: Wheel;
 }
 
 export const useHome = () => useQuery<Home>({ queryKey: ['home'], queryFn: () => api('/me/home'), refetchInterval: 45_000, refetchOnWindowFocus: true });

@@ -16,11 +16,11 @@ export async function runHourly(now = new Date()) {
     const users = await query(`select id from users where tenant_id = $1 and deleted_at is null and is_active`, [t.id]);
     const daysLeft = Math.ceil((+new Date(cycle.ends_at) - +now) / 86400000);
 
-    // Modo simples (sem saldo): nenhuma mensagem automática além do aviso de reconhecimento recebido.
-    if (cycle.coins_per_user <= 0) continue;
-
     // Roleta: segunda às 9h locais avisa quem ganhou o direito de girar
     if (local.dow === 1 && local.hour === 9) await notifyWeekWinner(t.id).catch((e) => console.error('[jobs] roleta', e));
+
+    // Modo simples (sem saldo): sem lembretes de saldo nem de fim de ciclo.
+    if (cycle.coins_per_user <= 0) continue;
 
     // Lembrete semanal de saldo: quarta e sexta às 10h locais
     if ((local.dow === 3 || local.dow === 5) && local.hour === 10) {
