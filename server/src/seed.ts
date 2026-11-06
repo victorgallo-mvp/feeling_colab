@@ -27,8 +27,8 @@ async function main() {
 
   await tx(async (db) => {
     const tenant = await one(
-      `insert into tenants (slug, name, primary_color, secondary_color, theme, font_display, logo_url, logo_dark_url, symbol_url, auth_mode)
-       values ($1,$2,$3,$4,$5,$6,$7,$8,$9,'click') returning *`,
+      `insert into tenants (slug, name, primary_color, secondary_color, theme, font_display, logo_url, logo_dark_url, symbol_url, auth_mode, coins_per_cycle, recognition_cost, max_per_receiver_per_cycle)
+       values ($1,$2,$3,$4,$5,$6,$7,$8,$9,'click',0,1,0) returning *`,
       [SLUG, 'Feeling', '#04D81A', '#04D81A', 'duo', 'big-shoulders', '/brand/feeling/logo-light-bg.png', '/brand/feeling/logo-dark-bg.png', '/brand/feeling/symbol-512.png'], db);
     const tid = tenant!.id;
 

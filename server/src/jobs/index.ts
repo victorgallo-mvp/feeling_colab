@@ -16,6 +16,9 @@ export async function runHourly(now = new Date()) {
     const users = await query(`select id from users where tenant_id = $1 and deleted_at is null and is_active`, [t.id]);
     const daysLeft = Math.ceil((+new Date(cycle.ends_at) - +now) / 86400000);
 
+    // Modo simples (sem saldo): nenhuma mensagem automática além do aviso de reconhecimento recebido.
+    if (cycle.coins_per_user <= 0) continue;
+
     // Roleta: segunda às 9h locais avisa quem ganhou o direito de girar
     if (local.dow === 1 && local.hour === 9) await notifyWeekWinner(t.id).catch((e) => console.error('[jobs] roleta', e));
 
@@ -23,7 +26,7 @@ export async function runHourly(now = new Date()) {
     if ((local.dow === 3 || local.dow === 5) && local.hour === 10) {
       for (const u of users) {
         const bal = await giverBalance(cycle, u.id, (await import('../db.js')).pool);
-        if (bal.balance >= cycle.recognition_cost && !(await sentRecently(u.id, 'balance_reminder', 20))) {
+        if (bal.balance !== null && bal.balance >= cycle.recognition_cost && !(await sentRecently(u.id, 'balance_reminder', 20))) {
           await notify(u.id, 'balance_reminder', { balance: bal.balance, cycleName: cycle.name });
         }
       }

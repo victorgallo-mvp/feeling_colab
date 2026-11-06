@@ -5,7 +5,6 @@ import { ToastProvider } from '../components/ui/toast';
 import { Layout } from './Layout';
 import { HomePage } from './pages/Home';
 import { AuthCallbackPage, LoginPage } from './pages/Login';
-import { SeasonPage, SeasonsListPage } from './pages/Seasons';
 import { AdminPage } from './pages/Admin';
 import { Spinner } from '../components/ui';
 
@@ -30,8 +29,6 @@ export function App() {
               <Route path="/entrar" element={<LoginPage />} />
               <Route path="/auth/callback" element={<AuthCallbackPage />} />
               <Route path="/" element={<Private><HomePage /></Private>} />
-              <Route path="/temporadas" element={<Private><SeasonsListPage /></Private>} />
-              <Route path="/temporadas/:id" element={<Private><SeasonPage /></Private>} />
               <Route path="/admin" element={<Private admin><AdminPage /></Private>} />
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>

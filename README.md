@@ -1,4 +1,11 @@
-# App de Reconhecimento & Missões (white-label)
+# App de Reconhecimento (white-label)
+
+> **Modo simples (nov/2026):** a interface foi reduzida a uma tela: clique na pessoa, dê uma moeda, texto opcional.
+> Sem motivos pré-definidos, sem saldo, sem limite por pessoa (só não vale para si mesmo), sem missões, ranking, roleta
+> ou temporadas na tela. O motor completo continua na API e no banco (tag git `v0-completo` guarda a interface antiga).
+> No banco, `coins_per_cycle = 0` e `max_per_receiver_per_cycle = 0` significam "sem limite"; `chip_id` virou opcional.
+> Admin (`/admin`, só para role admin): Pessoas e Marca & acesso.
+
 
 Gamificação interna para PMEs de 10–50 pessoas. Nasce no piloto **Feeling**, mas nada de marca
 é hardcoded: nome, logo, cores e regras vêm do tenant.

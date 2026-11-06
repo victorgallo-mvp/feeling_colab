@@ -4,14 +4,17 @@ import { ensureOpenCycle, type Cycle } from './cycles.js';
 import { notify } from './notifications/index.js';
 import { evaluateUser } from './achievements.js';
 
-export interface GiveInput { tenantId: string; giverId: string; receiverId: string; chipId: string; message?: string | null }
+export interface GiveInput { tenantId: string; giverId: string; receiverId: string; chipId?: string | null; message?: string | null }
+
+/** coins_per_user = 0 e max_per_receiver = 0 significam "sem limite" (modo simples). */
+export const unlimited = (n: number) => n <= 0;
 
 export async function giverBalance(cycle: Cycle, giverId: string, db: any) {
   const r = await one<{ spent: number; cnt: number }>(
     `select coalesce(sum(coins_spent),0)::int as spent, count(*)::int as cnt from recognitions where cycle_id = $1 and giver_id = $2 and deleted_at is null`,
     [cycle.id, giverId], db,
   );
-  return { spent: r!.spent, given: r!.cnt, balance: Math.max(0, cycle.coins_per_user - r!.spent) };
+  return { spent: r!.spent, given: r!.cnt, balance: unlimited(cycle.coins_per_user) ? null : Math.max(0, cycle.coins_per_user - r!.spent) };
 }
 
 export async function giveRecognition(input: GiveInput) {
@@ -24,32 +27,33 @@ export async function giveRecognition(input: GiveInput) {
     const receiver = await one(`select id, name from users where id = $1 and tenant_id = $2 and deleted_at is null and is_active`, [input.receiverId, input.tenantId], db);
     if (!receiver) throw notFound('Colega não encontrado');
 
-    const chip = await one(
+    // Motivo é opcional: sem chip, o reconhecimento é "por colaboração" e o texto livre conta a história.
+    const chip = input.chipId ? await one(
       `select id, label, emoji, color from chips where id = $1 and tenant_id = $2 and deleted_at is null and valid_from <= now() and (valid_until is null or valid_until > now())`,
       [input.chipId, input.tenantId], db,
-    );
-    if (!chip) throw badRequest('Motivo inválido ou fora de vigência', 'invalid_chip');
+    ) : null;
+    if (input.chipId && !chip) throw badRequest('Motivo inválido ou fora de vigência', 'invalid_chip');
 
     const bal = await giverBalance(cycle, input.giverId, db);
-    if (bal.balance < cycle.recognition_cost) throw conflict(`Saldo insuficiente: você tem ${bal.balance} moedas e cada reconhecimento custa ${cycle.recognition_cost}`, 'insufficient_balance');
+    if (bal.balance !== null && bal.balance < cycle.recognition_cost) throw conflict(`Saldo insuficiente: você tem ${bal.balance} moedas e cada reconhecimento custa ${cycle.recognition_cost}`, 'insufficient_balance');
 
     const pair = await one<{ cnt: number }>(
       `select count(*)::int cnt from recognitions where cycle_id = $1 and giver_id = $2 and receiver_id = $3 and deleted_at is null`,
       [cycle.id, input.giverId, input.receiverId], db,
     );
-    if (pair!.cnt >= cycle.max_per_receiver) throw conflict(`Você já reconheceu ${receiver.name} ${cycle.max_per_receiver}x nesta temporada`, 'receiver_limit');
+    if (!unlimited(cycle.max_per_receiver) && pair!.cnt >= cycle.max_per_receiver) throw conflict(`Você já reconheceu ${receiver.name} ${cycle.max_per_receiver}x nesta temporada`, 'receiver_limit');
 
     const rec = await one(
       `insert into recognitions (tenant_id, cycle_id, giver_id, receiver_id, chip_id, message, coins_spent, points_awarded)
        values ($1,$2,$3,$4,$5,$6,$7,$7) returning *`,
-      [input.tenantId, cycle.id, input.giverId, input.receiverId, input.chipId, input.message?.trim() || null, cycle.recognition_cost], db,
+      [input.tenantId, cycle.id, input.giverId, input.receiverId, chip?.id ?? null, input.message?.trim() || null, cycle.recognition_cost], db,
     );
     const after = await giverBalance(cycle, input.giverId, db);
     return { recognition: { ...rec, chip }, balance: after.balance, receiverName: receiver.name, cycle, pairCount: pair!.cnt + 1 };
   });
 
   const giver = await one(`select name from users where id = $1`, [input.giverId]);
-  notify(input.receiverId, 'recognition_received', { giverName: giver?.name ?? 'Alguém', chipLabel: out.recognition.chip.label, recognitionId: out.recognition.id }).catch(() => {});
+  notify(input.receiverId, 'recognition_received', { giverName: giver?.name ?? 'Alguém', chipLabel: out.recognition.chip?.label ?? null, message: out.recognition.message, recognitionId: out.recognition.id }).catch(() => {});
   evaluateUser(input.tenantId, input.giverId).catch(() => {});
   evaluateUser(input.tenantId, input.receiverId).catch(() => {});
   return out;
@@ -68,11 +72,11 @@ export async function feed(tenantId: string, userId: string, cycleId: string | n
     `select r.id, r.giver_id, g.name as giver_name, g.avatar_url as giver_avatar,
             r.receiver_id, rc.name as receiver_name, rc.avatar_url as receiver_avatar,
             r.message, r.created_at, r.cycle_id,
-            json_build_object('id', c.id, 'label', c.label, 'emoji', c.emoji, 'color', c.color) as chip,
+            case when c.id is null then null else json_build_object('id', c.id, 'label', c.label, 'emoji', c.emoji, 'color', c.color) end as chip,
             (select count(*)::int from reactions x where x.recognition_id = r.id and x.deleted_at is null) as claps,
             exists(select 1 from reactions x where x.recognition_id = r.id and x.user_id = $2 and x.deleted_at is null) as clapped
      from recognitions r
-     join users g on g.id = r.giver_id join users rc on rc.id = r.receiver_id join chips c on c.id = r.chip_id
+     join users g on g.id = r.giver_id join users rc on rc.id = r.receiver_id left join chips c on c.id = r.chip_id
      where r.tenant_id = $1 and r.deleted_at is null and r.is_public
        and ($3::uuid is null or r.cycle_id = $3)
        and ($5::timestamptz is null or r.created_at < $5)

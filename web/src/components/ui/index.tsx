@@ -33,28 +33,7 @@ export const Spinner = ({ className = '' }: { className?: string }) => (
   <svg className={`h-4 w-4 animate-spin ${className}`} viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="currentColor" strokeOpacity=".25" strokeWidth="4" /><path d="M22 12a10 10 0 0 1-10 10" stroke="currentColor" strokeWidth="4" strokeLinecap="round" /></svg>
 );
 
-export function Progress({ value, className = '', color }: { value: number; className?: string; color?: string }) {
-  return (
-    <div className={`h-2 w-full overflow-hidden rounded-full bg-card-2 ${className}`} role="progressbar" aria-valuenow={value} aria-valuemin={0} aria-valuemax={100}>
-      <div className="h-full rounded-full transition-all duration-500" style={{ width: `${Math.min(100, Math.max(0, value))}%`, background: color ?? 'var(--color-brand)' }} />
-    </div>
-  );
-}
 
-export function ChipTag({ emoji, label, color, size = 'sm' }: { emoji?: string | null; label: string; color?: string | null; size?: 'sm' | 'md' }) {
-  const cls = size === 'sm' ? 'px-2 py-0.5 text-xs' : 'px-3 py-1 text-sm';
-  if (!color) {
-    // sem cor própria: neutro dentro da paleta do tenant
-    return <span className={`inline-flex items-center gap-1 rounded-full border border-line bg-card-2 font-medium text-fg-2 ${cls}`}>{emoji && <span aria-hidden>{emoji}</span>}{label}</span>;
-  }
-  const c = color;
-  return (
-    <span className={`inline-flex items-center gap-1 rounded-full font-medium ${cls}`}
-      style={{ background: `color-mix(in oklab, ${c} 16%, var(--card))`, color: `color-mix(in oklab, ${c} 75%, var(--fg))` }}>
-      {emoji && <span aria-hidden>{emoji}</span>}{label}
-    </span>
-  );
-}
 
 export function Section({ title, subtitle, action, children, id, className = '' }: { title: ReactNode; subtitle?: ReactNode; action?: ReactNode; children: ReactNode; id?: string; className?: string }) {
   return (
@@ -94,6 +73,3 @@ export function Field({ label, children, hint }: { label: string; children: Reac
 }
 export const inputCls = 'focus-ring h-10 w-full rounded-xl border border-line bg-card px-3 text-sm text-fg placeholder:text-fg-faint';
 
-export function Empty({ children }: { children: ReactNode }) {
-  return <div className="rounded-xl border border-dashed border-line p-6 text-center text-sm text-fg-muted">{children}</div>;
-}

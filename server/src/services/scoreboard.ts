@@ -64,7 +64,7 @@ export async function homePayload(user: AuthUser) {
     rewards,
     wheel: { ...wheel, can_spin: !!wheel.winner && wheel.winner.user_id === user.id && !wheel.spin && wheel.prizes.length > 0 },
     team: part,
-    colleagues: colleagues.map((c) => ({ ...c, given_count: pair[c.id] ?? 0, can_receive: (pair[c.id] ?? 0) < cycle.max_per_receiver })),
+    colleagues: colleagues.map((c) => ({ ...c, given_count: pair[c.id] ?? 0, can_receive: cycle.max_per_receiver <= 0 || (pair[c.id] ?? 0) < cycle.max_per_receiver })),
     chips,
     missions,
     feed: feedRows,

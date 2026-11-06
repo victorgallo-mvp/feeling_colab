@@ -24,8 +24,8 @@ profileRouter.get('/:id/profile', validate({ params: S.idParam }), wrap(async (r
       (select min(rank) from cycle_user_snapshots where user_id = $1) as best_rank,
       (select count(*)::int from cycle_user_snapshots where user_id = $1) as seasons`, [id]),
     query(`select c.id, c.label, c.emoji, c.color, count(*)::int as count from recognitions r join chips c on c.id = r.chip_id where r.receiver_id = $1 and r.deleted_at is null group by c.id, c.label, c.emoji, c.color order by count desc, c.label`, [id]),
-    query(`select r.id, r.message, r.created_at, g.name as giver_name, g.avatar_url as giver_avatar, json_build_object('id', c.id, 'label', c.label, 'emoji', c.emoji, 'color', c.color) as chip
-           from recognitions r join users g on g.id = r.giver_id join chips c on c.id = r.chip_id where r.receiver_id = $1 and r.deleted_at is null and r.is_public order by r.created_at desc limit 12`, [id]),
+    query(`select r.id, r.message, r.created_at, g.name as giver_name, g.avatar_url as giver_avatar, case when c.id is null then null else json_build_object('id', c.id, 'label', c.label, 'emoji', c.emoji, 'color', c.color) end as chip
+           from recognitions r join users g on g.id = r.giver_id left join chips c on c.id = r.chip_id where r.receiver_id = $1 and r.deleted_at is null and r.is_public order by r.created_at desc limit 12`, [id]),
     query(`select cy.id, cy.name, s.rank, s.points_total, s.recognitions_received, s.missions_completed, s.met_participation from cycle_user_snapshots s join cycles cy on cy.id = s.cycle_id where s.user_id = $1 order by cy.starts_at desc limit 12`, [id]),
     listForUser(id, pool),
     weeklyStreaks(req.user.tenantId, pool),

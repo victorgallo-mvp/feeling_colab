@@ -118,7 +118,10 @@ button:disabled { cursor: not-allowed; }
 .font-display { font-family: var(--font-display); }
 [data-display="big-shoulders"] .font-display { text-transform: uppercase; letter-spacing: 0.01em; font-weight: 800; }
 [data-display="big-shoulders"] .font-display.text-base { font-size: 1.125rem; }
+[data-display="big-shoulders"] .font-display.text-xl { font-size: 1.5rem; }
 [data-display="big-shoulders"] .font-display.text-2xl { font-size: 1.9rem; line-height: 1; }
+[data-display="big-shoulders"] .font-display.text-4xl { font-size: 3rem; }
+@media (min-width: 640px) { [data-display="big-shoulders"] .font-display.sm\:text-5xl { font-size: 4rem; } }
 
 /* Efeitos de marca (luz difusa + grid), só onde ativados e só no escuro */
 [data-theme="dark"] .brand-glow, [data-theme="duo"] .ink.brand-glow, [data-theme="duo"] .ink .brand-glow { background-image: radial-gradient(60% 50% at 70% 10%, color-mix(in oklab, var(--brand) 22%, transparent), transparent 70%); }

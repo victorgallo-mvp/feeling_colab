@@ -10,7 +10,7 @@ export const refreshBody = z.object({ refreshToken: z.string().min(10).max(300) 
 
 export const giveRecognitionBody = z.object({
   receiverId: uuid,
-  chipId: uuid,
+  chipId: uuid.optional().nullable(),
   message: z.string().trim().max(500).optional().nullable(),
 });
 export const messageBody = z.object({ message: z.string().trim().max(500) });
@@ -65,9 +65,9 @@ export const settingsBody = z.object({
   primaryColor: z.string().regex(/^#[0-9a-fA-F]{6}$/).optional(),
   secondaryColor: z.string().regex(/^#[0-9a-fA-F]{6}$/).optional(),
   timezone: z.string().max(60).optional(),
-  coinsPerCycle: z.number().int().min(1).max(10000).optional(),
+  coinsPerCycle: z.number().int().min(0).max(10000).optional(),
   recognitionCost: z.number().int().min(1).max(10000).optional(),
-  maxPerReceiverPerCycle: z.number().int().min(1).max(1000).optional(),
+  maxPerReceiverPerCycle: z.number().int().min(0).max(1000).optional(),
   goalParticipationPct: z.number().int().min(1).max(100).optional(),
   goalMinRecognitions: z.number().int().min(0).max(100).optional(),
   goalMinMissions: z.number().int().min(0).max(100).optional(),

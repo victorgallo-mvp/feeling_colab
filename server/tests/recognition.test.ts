@@ -29,15 +29,28 @@ describe('dar reconhecimento', () => {
     expect(giverHome.body.me.points_total).toBe(0); // dar não pontua
   });
 
-  it('exige chip (motivo) válido', async () => {
-    const semChip = await as(giver.token).post('/api/recognitions', { receiverId: receiver.id });
-    expect(semChip.status).toBe(400);
-    expect(semChip.body.code).toBe('validation');
+  it('chip (motivo) é opcional, mas se vier precisa ser válido', async () => {
+    const semChip = await as(giver.token).post('/api/recognitions', { receiverId: receiver.id, message: 'valeu pela ajuda' });
+    expect(semChip.status).toBe(201);
+    expect(semChip.body.recognition.chip).toBeNull();
+    const home = await as(other.token).get('/api/me/home');
+    expect(home.body.feed[0].chip).toBeNull();
+    expect(home.body.feed[0].message).toBe('valeu pela ajuda');
 
     const expirado = await one(`insert into chips (tenant_id, label, valid_until) values ($1,'Antigo', now() - interval '1 day') returning id`, [tenant.id]);
     const r = await as(giver.token).post('/api/recognitions', { receiverId: receiver.id, chipId: expirado!.id });
     expect(r.status).toBe(400);
     expect(r.body.code).toBe('invalid_chip');
+  });
+
+  it('modo simples: coins 0 e max 0 = sem limite, custo 1 moeda', async () => {
+    const t = await makeTenant({ coins: 0, cost: 1, maxPer: 0 });
+    const g = await makeUser(t.tenant.id, 'Giver S'); const r1 = await makeUser(t.tenant.id, 'Receiver S');
+    for (let i = 0; i < 25; i++) expect((await as(g.token).post('/api/recognitions', { receiverId: r1.id })).status).toBe(201);
+    const home = await as(g.token).get('/api/me/home');
+    expect(home.body.me.balance).toBeNull();
+    expect(home.body.me.given).toBe(25);
+    expect(home.body.colleagues.find((c: any) => c.id === r1.id).can_receive).toBe(true);
   });
 
   it('não permite reconhecer a si mesmo', async () => {

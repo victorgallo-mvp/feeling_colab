@@ -11,7 +11,7 @@ export function render(type: NotificationType, d: Record<string, any>): { title:
     case 'mission_rejected':
       return { title: `Missão não validada: ${d.title}`, body: d.note ? `Motivo: ${d.note}` : 'Fale com o gestor e envie de novo quando estiver ok.', deepLink: '/?focus=missions' };
     case 'recognition_received':
-      return { title: `${d.giverName} reconheceu você`, body: `"${d.chipLabel}" — veja no feed.`, deepLink: `/?focus=feed&rec=${d.recognitionId}` };
+      return { title: `${d.giverName} reconheceu você`, body: d.message ? `"${d.message}"` : d.chipLabel ? `"${d.chipLabel}"` : 'Pela sua colaboração.', deepLink: `/?rec=${d.recognitionId}` };
     case 'cycle_ending':
       return { title: `${d.cycleName} termina em ${d.days} dia${d.days === 1 ? '' : 's'}`, body: d.balance > 0 ? `Você ainda tem ${d.balance} moedas. Use ou perca!` : 'Última chance de concluir missões.', deepLink: '/?focus=recognize' };
     case 'achievement':

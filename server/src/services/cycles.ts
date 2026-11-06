@@ -114,7 +114,7 @@ export async function closeCycle(tenantId: string, cycleId: string, actorId: str
         [cycle.id, s.user_id], db,
       );
       const received_by_chip: Record<string, number> = {};
-      for (const b of byChip) received_by_chip[b.chip_id] = b.cnt;
+      for (const b of byChip) if (b.chip_id) received_by_chip[b.chip_id] = b.cnt;
       await query(
         `insert into cycle_user_snapshots (tenant_id, cycle_id, user_id, coins_given, coins_unspent, recognitions_given, recognitions_received,
            points_recognition, points_missions, points_total, missions_completed, rank, met_participation, received_by_chip)
@@ -186,7 +186,7 @@ export async function cycleSummary(tenantId: string, cycleId: string, db: Querya
       ranking.push({
         ...s, rank, coins_unspent: Math.max(0, cycle.coins_per_user - s.coins_given),
         met_participation: s.recognitions_given >= cycle.goal_min_recognitions && s.missions_completed >= cycle.goal_min_missions,
-        received_by_chip: Object.fromEntries(byChip.map((b) => [b.chip_id, b.cnt])), individual_reward_note: null,
+        received_by_chip: Object.fromEntries(byChip.filter((b) => b.chip_id).map((b) => [b.chip_id, b.cnt])), individual_reward_note: null,
       });
     }
   }
