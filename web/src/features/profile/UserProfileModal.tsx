@@ -9,7 +9,7 @@ import { enablePush, pushSupported } from '../../lib/push';
 
 /** Perfil enxuto: foto, moedas recebidas e dadas, últimas recebidas. No meu, também avisos. */
 export function UserProfileModal({ userId, onClose }: { userId: string | null; onClose: () => void }) {
-  const { me } = useAuth();
+  const { me, logout } = useAuth();
   const q = useQuery<any>({ queryKey: ['profile', userId], queryFn: () => api(`/users/${userId}/profile`), enabled: !!userId });
   const p = q.data;
   const isMe = !!me && me.user.id === userId;
@@ -42,6 +42,14 @@ export function UserProfileModal({ userId, onClose }: { userId: string | null; o
               </ul>
             )}
           </div>
+          {isMe && (
+            <div className="border-t border-line pt-4">
+              <button type="button" className="focus-ring rounded-md text-sm text-fg-muted underline hover:text-fg"
+                onClick={() => { if (window.confirm(me!.tenant.auth_mode === 'invite' ? 'Sair deste aparelho? Para entrar de novo você vai precisar pedir um código novo ao administrador.' : 'Sair deste aparelho?')) { onClose(); logout(); } }}>
+                Sair deste aparelho
+              </button>
+            </div>
+          )}
         </div>
       )}
     </Modal>

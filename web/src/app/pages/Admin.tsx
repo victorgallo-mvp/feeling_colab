@@ -16,6 +16,7 @@ export function AdminPage() {
   const tab = params.get('tab') ?? 'usuarios';
   return (
     <div className="space-y-5">
+      <ClickAccessBanner />
       <nav className="flex flex-wrap gap-1 text-sm">
         {TABS.map(([k, label]) => <button key={k} onClick={() => setParams({ tab: k })} className={`focus-ring rounded-lg px-3 py-1.5 font-medium transition ${tab === k ? 'bg-fg text-surface' : 'text-fg-2 hover:bg-card-2'}`}>{label}</button>)}
       </nav>
@@ -25,6 +26,42 @@ export function AdminPage() {
       {tab === 'justo' && <FairPlayPanel />}
       {tab === 'marca' && <SettingsPanel />}
     </div>
+  );
+}
+
+/**
+ * Enquanto o acesso é "por clique", qualquer pessoa entra como qualquer colega. Um botão resolve na ordem segura:
+ * gera o código de todo mundo, fecha o acesso por clique e mostra os códigos. Quem clica continua conectado.
+ */
+function ClickAccessBanner() {
+  const s = useQuery<any>({ queryKey: ['settings'], queryFn: () => api('/admin/settings') });
+  const { refetch } = useAuth();
+  const qc = useQueryClient();
+  const toast = useToast();
+  const [codes, setCodes] = useState<AccessCode[] | null>(null);
+  const close = useMutation({
+    mutationFn: async () => {
+      const users = await api<any[]>('/admin/users');
+      const list = await api<AccessCode[]>('/admin/users/access-codes', { method: 'POST', json: { ids: users.filter((u) => u.is_active).map((u) => u.id) } });
+      await api('/admin/settings', { method: 'PATCH', json: { authMode: 'invite' } });
+      return list;
+    },
+    onSuccess: (list) => { setCodes(list); qc.invalidateQueries({ queryKey: ['settings'] }); qc.invalidateQueries({ queryKey: ['admin-users'] }); refetch(); },
+    onError: (e: any) => toast(e?.message ?? 'Não foi possível fechar o acesso', 'err'),
+  });
+  return (
+    <>
+      {s.data?.auth_mode === 'click' && (
+        <div className="rounded-2xl border border-danger bg-danger-soft p-4 text-sm" role="alert">
+          <p className="font-semibold text-fg">O acesso por clique está aberto.</p>
+          <p className="mt-1 text-fg-2">Hoje qualquer pessoa entra escolhendo qualquer colega na tela inicial, sem senha. Feche antes de a roleta valer prêmio: cada pessoa recebe um código, entra uma vez e fica conectada por um ano. Você continua conectado neste aparelho.</p>
+          <Button className="mt-3" loading={close.isPending} onClick={() => { if (window.confirm('Gerar o código de acesso de todas as pessoas ativas e fechar o acesso por clique agora? Quem não estiver conectado vai precisar do código para entrar.')) close.mutate(); }}>Gerar códigos e fechar o acesso por clique</Button>
+        </div>
+      )}
+      <Modal open={!!codes} onClose={() => { if (window.confirm('Já copiou os códigos? Eles não aparecem de novo (mas você pode gerar outros em Pessoas).')) setCodes(null); }} title="Acesso por clique fechado. Envie os códigos." wide>
+        {codes && <CodesList codes={codes} />}
+      </Modal>
+    </>
   );
 }
 
@@ -224,6 +261,14 @@ function RulesPanel() {
 // ---------------- Jogo justo ----------------
 function FairPlayPanel() {
   const [weeks, setWeeks] = useState(4);
+  const qc = useQueryClient();
+  const toast = useToast();
+  const coins = useQuery<any[]>({ queryKey: ['admin-coins'], queryFn: () => api('/admin/recognitions') });
+  const annul = useMutation({
+    mutationFn: (id: string) => api(`/admin/recognitions/${id}`, { method: 'DELETE' }),
+    onSuccess: () => { for (const k of ['admin-coins', 'fairplay', 'home']) qc.invalidateQueries({ queryKey: [k] }); toast('Moeda anulada'); },
+    onError: (e: any) => toast(e?.message, 'err'),
+  });
   const r = useQuery<any>({ queryKey: ['fairplay', weeks], queryFn: () => api(`/admin/fairplay?weeks=${weeks}`) });
   const wk = (d: string) => `semana de ${new Date(d + 'T12:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}`;
   const Empty = () => <p className="text-sm text-fg-muted">Nada fora do padrão no período.</p>;
@@ -261,6 +306,17 @@ function FairPlayPanel() {
           </Section>
         </>
       )}
+      <Section title="Moedas recentes" subtitle="Últimos 14 dias. Anular tira a moeda do mural e do ranking; se for desta semana, ela volta para o saldo de quem deu. Use para moeda de teste ou indevida.">
+        {!coins.data ? <Spinner /> : coins.data.length === 0 ? <p className="text-sm text-fg-muted">Nenhuma moeda no período.</p> : (
+          <ul className="divide-y divide-line">{coins.data.map((x) => (
+            <li key={x.id} className="flex items-start gap-3 py-2 text-sm">
+              <div className="min-w-0 flex-1"><b>{x.giver_name}</b> para <b>{x.receiver_name}</b> <span className="text-fg-muted">· {timeAgo(x.created_at)}</span><div className="text-fg-2">{x.message ? `“${x.message}”` : <i className="text-fg-faint">sem texto</i>}</div></div>
+              <button className="focus-ring shrink-0 rounded-lg px-2 py-1 text-xs text-danger hover:bg-danger-soft" disabled={annul.isPending}
+                onClick={() => { if (window.confirm(`Anular a moeda de ${x.giver_name} para ${x.receiver_name}?`)) annul.mutate(x.id); }}>anular</button>
+            </li>
+          ))}</ul>
+        )}
+      </Section>
     </div>
   );
 }
@@ -305,8 +361,8 @@ function SettingsPanel() {
         </div>
       </Section>
       <Section title="Acesso" subtitle="Como as pessoas entram no app.">
-        <Field label="Modo de acesso" hint="Por código: você gera o código de cada pessoa em Pessoas, ela digita uma vez e o aparelho fica conectado por um ano. Antes de mudar para este modo, gere e distribua os códigos (quem já está conectado continua). Por clique: qualquer um entra escolhendo a si mesmo; não use com prêmio valendo. Link por e-mail exige RESEND_API_KEY configurada na API.">
-          <select name="authMode" className={inputCls} defaultValue={d.auth_mode}><option value="invite">Por código de acesso (recomendado)</option><option value="click">Por clique (sem e-mail)</option><option value="magic_link">Link por e-mail</option></select>
+        <Field label="Modo de acesso" hint="Por código: você gera o código de cada pessoa em Pessoas, ela digita uma vez e o aparelho fica conectado por um ano. Antes de mudar para este modo, gere e distribua os códigos (quem já está conectado continua). Link por e-mail exige RESEND_API_KEY configurada na API.">
+          <select name="authMode" className={inputCls} defaultValue={d.auth_mode}><option value="invite">Por código de acesso (recomendado)</option>{(d.auth_mode === 'click' || import.meta.env.DEV) && <option value="click">Por clique (sem senha, inseguro)</option>}<option value="magic_link">Link por e-mail</option></select>
         </Field>
         <div className="mt-4 flex justify-end"><Button type="submit" loading={save.isPending}>Salvar</Button></div>
       </Section>

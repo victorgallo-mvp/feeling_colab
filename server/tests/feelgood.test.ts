@@ -281,6 +281,20 @@ describe('programa Feel Good', () => {
       expect((await give(a, d)).status).toBe(409);
     });
 
+    it('admin anula uma moeda: sai do ranking e o saldo da semana volta para quem deu', async () => {
+      const r = await give(a, b);
+      expect((await as(a.token).get('/api/me/home')).body.me.balance).toBe(4);
+      const list = await as(admin.token).get('/api/admin/recognitions');
+      expect(list.body.map((x: any) => x.id)).toContain(r.body.recognition.id);
+      expect((await as(a.token).delete(`/api/admin/recognitions/${r.body.recognition.id}`)).status).toBe(403);
+      expect((await as(admin.token).delete(`/api/admin/recognitions/${r.body.recognition.id}`)).status).toBe(200);
+      const home = await as(a.token).get('/api/me/home');
+      expect(home.body.me.balance).toBe(5);
+      expect(home.body.feed).toEqual([]);
+      expect(home.body.week.ranking.find((x: any) => x.user_id === b.id).coins).toBe(0);
+      expect((await as(admin.token).delete(`/api/admin/recognitions/${r.body.recognition.id}`)).status).toBe(404);
+    });
+
     it('relatório aponta troca recíproca, concentração e justificativa curta', async () => {
       await give(a, b); await give(b, a);                    // troca
       await give(c, d); await give(c, d); await give(c, d);  // concentração

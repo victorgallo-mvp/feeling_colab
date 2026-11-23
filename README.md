@@ -10,7 +10,9 @@
 > - **Acesso por código, sem e-mail**: o admin gera um código por pessoa (Admin → Pessoas), ela digita uma vez (ou abre o link
 >   `/entrar?c=CÓDIGO`) e o aparelho fica conectado por 365 dias, renovando a cada uso. Código de uso único, vale 7 dias; gerar outro
 >   invalida o anterior. Ative em Admin → Marca & acesso → "Por código de acesso" depois de distribuir os códigos.
+>   Enquanto o tenant estiver "por clique", o Admin mostra um aviso com um botão que gera os códigos de todos e fecha esse acesso.
 >   Admin sem acesso: `npm run access-code -w server -- pessoa@empresa.com` (no Railway: `railway run npm run access-code -w server -- …`).
+> - **Anular moeda**: Admin → Jogo justo → Moedas recentes. Tira do mural e do ranking e devolve o saldo da semana a quem deu.
 > - **Admin** (`/admin`, só role admin): Pessoas (importar lista, ativar/desativar/remover em lote, códigos, desconectar aparelhos),
 >   Roleta, Regras, Jogo justo (trocas recíprocas, concentração, justificativas curtas) e Marca & acesso.
 >

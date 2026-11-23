@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState } from 'react';
-import { Link } from 'react-router-dom';
 import type { Chip, Colleague, Home } from '../../api/hooks';
 import { useGiveRecognition } from '../../api/hooks';
 import { Avatar, Button } from '../../components/ui';
@@ -56,7 +55,6 @@ export function Recognize({ data }: { data: Home }) {
       ) : (
         <p className="mt-3 text-base text-fg-muted">Clique na pessoa e conte o que ela fez.</p>
       )}
-      <p className="mt-2 text-sm text-fg-faint"><Link to="/como-funciona" className="focus-ring rounded underline hover:text-fg-muted">Como funciona</Link></p>
 
       <div className={`mt-8 grid grid-cols-4 gap-x-2 gap-y-5 sm:grid-cols-5 ${empty ? 'opacity-40' : ''}`} role="list">
         {data.colleagues.map((c) => {

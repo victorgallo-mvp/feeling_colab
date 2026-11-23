@@ -228,6 +228,24 @@ adminRouter.patch('/wheel/spins/:id', validate({ params: S.idParam, body: S.deli
   res.json(s);
 }));
 
+// ---------- moedas (anular) ----------
+/** Moedas recentes, para o admin poder anular uma de teste ou indevida. */
+adminRouter.get('/recognitions', wrap(async (req, res) => {
+  res.json(await query(
+    `select r.id, r.created_at, r.message, g.name as giver_name, rc.name as receiver_name
+     from recognitions r join users g on g.id = r.giver_id join users rc on rc.id = r.receiver_id
+     where r.tenant_id = $1 and r.deleted_at is null and r.created_at > now() - interval '14 days'
+     order by r.created_at desc limit 150`, [req.user.tenantId]));
+}));
+
+/** Anula uma moeda: sai do feed e do ranking e, se for da semana corrente, volta para o saldo de quem deu. */
+adminRouter.delete('/recognitions/:id', validate({ params: S.idParam }), wrap(async (req, res) => {
+  const r = await one(`update recognitions set deleted_at = now(), updated_at = now() where id = $1 and tenant_id = $2 and deleted_at is null returning id, giver_id, receiver_id, message, created_at`, [req.params.id, req.user.tenantId]);
+  if (!r) throw notFound('Moeda não encontrada');
+  await audit(pool, { tenantId: req.user.tenantId, actorId: req.user.id, action: 'recognition.annul', entity: 'recognition', entityId: r.id, before: r });
+  res.json({ ok: true });
+}));
+
 // ---------- jogo justo ----------
 /** Distribuições fora do padrão nas últimas semanas, para a liderança olhar. Não bloqueia nada: só aponta. */
 adminRouter.get('/fairplay', validate({ query: S.fairplayQuery }), wrap(async (req, res) => {
