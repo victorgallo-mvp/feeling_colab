@@ -29,7 +29,7 @@ async function main() {
     const tenant = await one(
       `insert into tenants (slug, name, primary_color, secondary_color, theme, font_display, logo_url, logo_dark_url, symbol_url, auth_mode, coins_per_cycle, recognition_cost, max_per_receiver_per_cycle, coins_per_week, message_min_chars)
        values ($1,$2,$3,$4,$5,$6,$7,$8,$9,'click',0,1,0,5,10) returning *`,
-      [SLUG, 'Feeling', '#04D81A', '#04D81A', 'duo', 'big-shoulders', '/brand/feeling/logo-light-bg.png', '/brand/feeling/logo-dark-bg.png', '/brand/feeling/symbol-512.png'], db);
+      [SLUG, 'Feeling', '#04D81A', '#04D81A', 'duo', 'big-shoulders', '/brand/feelgood/logo-light-bg.png', '/brand/feelgood/logo-dark-bg.png', '/brand/feelgood/symbol-512.png'], db);
     const tid = tenant!.id;
 
     const areaNames = ['Atendimento', 'Criação', 'Mídia', 'Planejamento'];

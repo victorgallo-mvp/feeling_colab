@@ -20,7 +20,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
       <header className="ink sticky top-0 z-40 bg-surface">
         <div className="mx-auto flex h-14 max-w-2xl items-center justify-between gap-3 px-5">
           <Link to="/" className="flex items-center" aria-label={t?.name ?? 'Início'}>
-            {t && logoFor(t) ? <img src={logoFor(t)!} alt={t.name} className="h-6 w-auto max-w-[140px] object-contain sm:h-7" />
+            {t && logoFor(t) ? <img src={logoFor(t)!} alt={t.name} className="h-7 w-auto max-w-[190px] object-contain sm:h-8" />
               : <span className="font-display text-lg text-fg">{t?.name ?? 'Reconhecimento'}</span>}
           </Link>
           {me && (
