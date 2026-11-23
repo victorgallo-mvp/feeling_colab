@@ -3,19 +3,35 @@ import { badRequest, conflict, forbidden, notFound } from '../errors.js';
 import { ensureOpenCycle, type Cycle } from './cycles.js';
 import { notify } from './notifications/index.js';
 import { evaluateUser } from './achievements.js';
+import { weekSpent } from './week.js';
 
 export interface GiveInput { tenantId: string; giverId: string; receiverId: string; chipId?: string | null; message?: string | null }
 
 /** coins_per_user = 0 e max_per_receiver = 0 significam "sem limite" (modo simples). */
 export const unlimited = (n: number) => n <= 0;
 
+/**
+ * Saldo para dar. Com `coins_per_week > 0` no tenant vale a regra semanal (zera toda segunda, não acumula);
+ * senão, o saldo da temporada.
+ */
 export async function giverBalance(cycle: Cycle, giverId: string, db: any) {
+  const t = await one<{ coins_per_week: number }>(`select coins_per_week from tenants where id = $1`, [cycle.tenant_id], db);
+  if (t && t.coins_per_week > 0) {
+    const w = await weekSpent(cycle.tenant_id, giverId, db);
+    return { spent: w.spent, given: w.given, balance: Math.max(0, t.coins_per_week - w.spent) as number | null, weekly: true };
+  }
   const r = await one<{ spent: number; cnt: number }>(
     `select coalesce(sum(coins_spent),0)::int as spent, count(*)::int as cnt from recognitions where cycle_id = $1 and giver_id = $2 and deleted_at is null`,
     [cycle.id, giverId], db,
   );
-  return { spent: r!.spent, given: r!.cnt, balance: unlimited(cycle.coins_per_user) ? null : Math.max(0, cycle.coins_per_user - r!.spent) };
+  return { spent: r!.spent, given: r!.cnt, balance: unlimited(cycle.coins_per_user) ? null : Math.max(0, cycle.coins_per_user - r!.spent), weekly: false };
 }
+
+async function minMessageChars(tenantId: string, db?: any) {
+  const t = await one<{ message_min_chars: number }>(`select message_min_chars from tenants where id = $1`, [tenantId], db);
+  return t?.message_min_chars ?? 0;
+}
+const messageRequired = (min: number) => badRequest(`Conte o que a pessoa fez e como isso ajudou (mínimo de ${min} caracteres)`, 'message_required');
 
 export async function giveRecognition(input: GiveInput) {
   if (input.giverId === input.receiverId) throw badRequest('Você não pode reconhecer a si mesmo', 'self_recognition');
@@ -34,8 +50,17 @@ export async function giveRecognition(input: GiveInput) {
     ) : null;
     if (input.chipId && !chip) throw badRequest('Motivo inválido ou fora de vigência', 'invalid_chip');
 
+    // Toda moeda exige justificativa quando o tenant define um mínimo de caracteres.
+    const message = input.message?.trim() || null;
+    const min = await minMessageChars(input.tenantId, db);
+    if (min > 0 && (message?.length ?? 0) < min) throw messageRequired(min);
+
     const bal = await giverBalance(cycle, input.giverId, db);
-    if (bal.balance !== null && bal.balance < cycle.recognition_cost) throw conflict(`Saldo insuficiente: você tem ${bal.balance} moedas e cada reconhecimento custa ${cycle.recognition_cost}`, 'insufficient_balance');
+    if (bal.balance !== null && bal.balance < cycle.recognition_cost) {
+      throw conflict(bal.weekly
+        ? 'Suas moedas da semana acabaram. Elas voltam na segunda.'
+        : `Saldo insuficiente: você tem ${bal.balance} moedas e cada reconhecimento custa ${cycle.recognition_cost}`, 'insufficient_balance');
+    }
 
     const pair = await one<{ cnt: number }>(
       `select count(*)::int cnt from recognitions where cycle_id = $1 and giver_id = $2 and receiver_id = $3 and deleted_at is null`,
@@ -46,7 +71,7 @@ export async function giveRecognition(input: GiveInput) {
     const rec = await one(
       `insert into recognitions (tenant_id, cycle_id, giver_id, receiver_id, chip_id, message, coins_spent, points_awarded)
        values ($1,$2,$3,$4,$5,$6,$7,$7) returning *`,
-      [input.tenantId, cycle.id, input.giverId, input.receiverId, chip?.id ?? null, input.message?.trim() || null, cycle.recognition_cost], db,
+      [input.tenantId, cycle.id, input.giverId, input.receiverId, chip?.id ?? null, message, cycle.recognition_cost], db,
     );
     const after = await giverBalance(cycle, input.giverId, db);
     return { recognition: { ...rec, chip }, balance: after.balance, receiverName: receiver.name, cycle, pairCount: pair!.cnt + 1 };
@@ -63,6 +88,8 @@ export async function setMessage(tenantId: string, recognitionId: string, userId
   const rec = await one(`select * from recognitions where id = $1 and tenant_id = $2 and deleted_at is null`, [recognitionId, tenantId]);
   if (!rec) throw notFound('Reconhecimento não encontrado');
   if (rec.giver_id !== userId) throw forbidden('Só quem deu o reconhecimento pode editar o texto');
+  const min = await minMessageChars(tenantId);
+  if (min > 0 && message.trim().length < min) throw messageRequired(min);
   const updated = await one(`update recognitions set message = $2, updated_at = now() where id = $1 returning *`, [recognitionId, message.trim() || null]);
   return updated;
 }

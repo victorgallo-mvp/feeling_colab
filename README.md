@@ -1,17 +1,27 @@
 # App de Reconhecimento (white-label)
 
-> **Modo simples (nov/2026):** a interface foi reduzida a uma tela: clique na pessoa, dê uma moeda, texto opcional.
-> Sem motivos pré-definidos, sem saldo, sem limite por pessoa (só não vale para si mesmo), sem missões, ranking, roleta
-> na tela. Ficaram, a pedido do CEO, a página **Ranking** (moedas recebidas na temporada, visível a todos) e a **Roleta da semana**
-> (quem mais recebeu moedas na semana anterior gira; prêmios em Admin → Roleta). O motor completo continua na API e no banco (tag git `v0-completo`).
-> No banco, `coins_per_cycle = 0` e `max_per_receiver_per_cycle = 0` significam "sem limite"; `chip_id` virou opcional.
-> Admin (`/admin`, só para role admin): Pessoas, Roleta e Marca & acesso.
+> **Programa Feel Good (nov/2026):** a interface segue as regras do deck de Cultura & Pessoas.
+> - **5 moedas por semana** por pessoa (`tenants.coins_per_week`; 0 desliga). Zeram toda segunda 00:00 no fuso do tenant e nunca acumulam.
+> - **Toda moeda exige justificativa** (`tenants.message_min_chars`, 10 na Feeling). A atitude (Colaboração, Proatividade…) é etiqueta opcional.
+> - **Ranking da semana** e **Destaque da Semana**: só moedas contam. Desempate: mais colegas diferentes; depois "giro prévio"
+>   (cada empatado tira um número de 1 a 100, o maior vence; fica gravado em `wheel_tiebreaks`).
+> - **Roleta**: prêmios em Admin → Roleta. O prêmio com efeito "Dobre e passe" não paga; o próximo Destaque gira sem essa fatia e
+>   leva em dobro (`wheel_spins.multiplier`). Entrega com status: a combinar, agendado, entregue.
+> - **Acesso por código, sem e-mail**: o admin gera um código por pessoa (Admin → Pessoas), ela digita uma vez (ou abre o link
+>   `/entrar?c=CÓDIGO`) e o aparelho fica conectado por 365 dias, renovando a cada uso. Código de uso único, vale 7 dias; gerar outro
+>   invalida o anterior. Ative em Admin → Marca & acesso → "Por código de acesso" depois de distribuir os códigos.
+>   Admin sem acesso: `npm run access-code -w server -- pessoa@empresa.com` (no Railway: `railway run npm run access-code -w server -- …`).
+> - **Admin** (`/admin`, só role admin): Pessoas (importar lista, ativar/desativar/remover em lote, códigos, desconectar aparelhos),
+>   Roleta, Regras, Jogo justo (trocas recíprocas, concentração, justificativas curtas) e Marca & acesso.
+>
+> O motor antigo (temporadas mensais, missões, saldo por temporada) continua na API e no banco (tag git `v0-completo`); com
+> `coins_per_week = 0` vale o saldo da temporada, onde `coins_per_cycle = 0` e `max_per_receiver_per_cycle = 0` significam "sem limite".
 
 
 Gamificação interna para PMEs de 10–50 pessoas. Nasce no piloto **Feeling**, mas nada de marca
 é hardcoded: nome, logo, cores e regras vêm do tenant.
 
-**Stack:** Node 20+ · Express 5 · PostgreSQL · zod · JWT (magic link, sem senha) · React 19 · Vite · Tailwind 4 · PWA + Web Push.
+**Stack:** Node 20+ · Express 5 · PostgreSQL · zod · JWT (código de acesso ou magic link, sem senha) · React 19 · Vite · Tailwind 4 · PWA + Web Push.
 
 ## Rodando local
 
@@ -32,9 +42,9 @@ npm run seed                              # SEED_RESET=true npm run seed -w serv
 npm run dev
 ```
 
-Abra http://localhost:5190. O tenant Feeling está em **modo de acesso por clique** (piloto): a tela de entrada lista as
-pessoas e você entra clicando na sua. Para voltar ao magic link por e-mail, Admin → Regras & marca → Modo de acesso
-(sem `RESEND_API_KEY` o link é mostrado na tela e no console da API).
+Abra http://localhost:5190. No seed local o tenant Feeling fica em **acesso por clique** (a tela de entrada lista as
+pessoas e você entra clicando na sua), para facilitar o desenvolvimento. Em produção use **acesso por código**
+(Admin → Marca & acesso → Modo de acesso). O modo "link por e-mail" continua existindo e exige `RESEND_API_KEY`.
 
 | Papel | E-mail |
 |---|---|
@@ -50,8 +60,9 @@ Docs da API: http://localhost:3001/api/docs (OpenAPI gerada dos schemas zod).
 npm test     # vitest + supertest contra feeling_gamificacao_test (roda migrations antes)
 ```
 
-Cobertura dos fluxos críticos: dar reconhecimento (saldo, limite por pessoa, chip obrigatório,
-concorrência), validação de missão (crédito só pós-aprovação, idempotência por período, escopo de área)
+Cobertura dos fluxos críticos: regras do Feel Good (saldo semanal e virada de semana, justificativa obrigatória, ranking da
+semana, desempates, "Dobre e passe", entrega de prêmio, código de acesso, sessão de um ano com tolerância na renovação,
+pessoas em lote, jogo justo), dar reconhecimento no motor antigo (saldo, limite por pessoa, concorrência), validação de missão (crédito só pós-aprovação, idempotência por período, escopo de área)
 e fechamento de ciclo (snapshot, ranking com empate, meta coletiva, abertura da próxima temporada,
 regras novas só valem no próximo ciclo).
 
@@ -67,7 +78,9 @@ server/
       missions.ts        period_key (semana ISO / mês / once), fila, validação
       cycles.ts          abrir/fechar temporada, snapshots, ranking, meta coletiva
       scoreboard.ts      payload único da home (GET /me/home)
-      auth.ts            magic link (hash, 15 min) + access 1h + refresh 30d rotativo
+      auth.ts            código de acesso (uso único, 7 dias) ou magic link + access 1h + refresh 365d rotativo
+      week.ts            semana corrente, moedas dadas na semana e ranking semanal
+      wheel.ts           Destaque da Semana, desempates, roleta e "Dobre e passe"
       notifications/     módulo isolado: provider.ts (contrato) + webPush.ts + templates.ts
     jobs/                cron horário: lembrete de saldo (qua/sex 10h local), fim de ciclo (3 dias antes)
     seed.ts              tenant Feeling + 15 usuários + chips + missões + reconhecimentos

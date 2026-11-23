@@ -3,7 +3,7 @@ import { validate } from '../middleware/validate.js';
 import { authLimiter, emailLimiter } from '../middleware/rateLimit.js';
 import { wrap } from '../wrap.js';
 import * as S from '../schemas.js';
-import { clickLogin, refreshSession, requestMagicLink, revokeSession, verifyMagicLink } from '../services/auth.js';
+import { clickLogin, loginWithCode, refreshSession, requestMagicLink, revokeSession, verifyMagicLink } from '../services/auth.js';
 
 export const authRouter = Router();
 
@@ -18,6 +18,10 @@ authRouter.post('/verify', authLimiter, validate({ body: S.verifyBody }), wrap(a
 
 authRouter.post('/click-login', authLimiter, validate({ body: S.clickLoginBody }), wrap(async (req, res) => {
   res.json(await clickLogin(req.body.userId, req.body.tenant, req.headers['user-agent']));
+}));
+
+authRouter.post('/code', authLimiter, validate({ body: S.codeLoginBody }), wrap(async (req, res) => {
+  res.json(await loginWithCode(req.body.code, req.headers['user-agent']));
 }));
 
 authRouter.post('/refresh', validate({ body: S.refreshBody }), wrap(async (req, res) => {

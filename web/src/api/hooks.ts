@@ -9,11 +9,17 @@ export interface FeedItem {
 }
 /** Só o que a tela única usa. A API devolve mais campos; eles são ignorados. */
 export interface RankRow { user_id: string; name: string; avatar_url: string | null; rank: number; points_total: number; recognitions_received: number }
+/** Ranking da semana: moedas recebidas e de quantos colegas diferentes (critério de desempate). */
+export interface WeekRow { user_id: string; name: string; avatar_url: string | null; rank: number; coins: number; givers: number }
 export interface Wheel {
   week_key: string; can_spin: boolean;
-  winner: { user_id: string; name: string; avatar_url: string | null; points: number } | null;
-  spin: { id: string; user_id: string; reward_title: string; spun_at: string } | null;
-  prizes: { id: string; title: string; description: string | null; weight: number }[];
+  winner: { user_id: string; name: string; avatar_url: string | null; points: number; givers: number } | null;
+  /** Giro prévio do desempate, do maior número para o menor. Vazio quando não houve empate. */
+  tiebreak: { user_id: string; name: string; roll: number }[];
+  /** 2 quando a semana anterior caiu em "Dobre e passe": o prêmio desta vale em dobro. */
+  multiplier: number;
+  spin: { id: string; user_id: string; reward_title: string; reward_effect: 'prize' | 'double_next'; multiplier: number; spun_at: string } | null;
+  prizes: { id: string; title: string; description: string | null; weight: number; effect: 'prize' | 'double_next' }[];
 }
 export interface Home {
   cycle: { id: string; name: string; recognition_cost: number };
@@ -21,6 +27,9 @@ export interface Home {
   colleagues: Colleague[];
   feed: FeedItem[];
   ranking: RankRow[];
+  rules: { coins_per_week: number; message_min_chars: number };
+  week: { key: string; starts_at: string; ends_at: string; ranking: WeekRow[]; my_rank: number | null };
+  chips: Chip[];
   wheel: Wheel;
 }
 
@@ -34,7 +43,7 @@ export function useInvalidateHome() {
 export function useGiveRecognition() {
   const inv = useInvalidateHome();
   return useMutation({
-    mutationFn: (b: { receiverId: string; message?: string }) => api<{ recognition: { id: string } }>('/recognitions', { method: 'POST', json: b }),
+    mutationFn: (b: { receiverId: string; message?: string; chipId?: string | null }) => api<{ recognition: { id: string } }>('/recognitions', { method: 'POST', json: b }),
     onSuccess: inv,
   });
 }

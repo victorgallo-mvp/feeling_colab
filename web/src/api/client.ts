@@ -13,7 +13,9 @@ async function tryRefresh(): Promise<boolean> {
       const t = getTokens();
       if (!t?.refreshToken) return false;
       const r = await fetch(`${BASE}/api/auth/refresh`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ refreshToken: t.refreshToken }) });
-      if (!r.ok) { clearTokens(); return false; }
+      // Só um "não" de verdade derruba a sessão. Erro de servidor ou limite de requisições não pode deslogar ninguém.
+      if (r.status === 401 || r.status === 400) { clearTokens(); return false; }
+      if (!r.ok) throw new ApiError(r.status, 'Não foi possível renovar a sessão agora. Tente de novo em instantes.');
       setTokens(await r.json());
       return true;
     })().finally(() => { refreshing = null; });

@@ -6,7 +6,7 @@ import { applyTheme } from './theme';
 
 export interface Me {
   user: { id: string; name: string; email: string; avatar_url: string | null; role: 'member' | 'manager' | 'admin'; area: { id: string; name: string } | null };
-  tenant: { id: string; slug: string; name: string; logo_url: string | null; logo_dark_url: string | null; symbol_url: string | null; theme: 'light' | 'dark' | 'duo'; font_display: 'default' | 'big-shoulders'; auth_mode: 'magic_link' | 'click'; primary_color: string; secondary_color: string; timezone: string };
+  tenant: { id: string; slug: string; name: string; logo_url: string | null; logo_dark_url: string | null; symbol_url: string | null; theme: 'light' | 'dark' | 'duo'; font_display: 'default' | 'big-shoulders'; auth_mode: 'magic_link' | 'click' | 'invite'; primary_color: string; secondary_color: string; timezone: string };
   push: { vapidPublicKey: string | null };
 }
 

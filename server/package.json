@@ -9,6 +9,7 @@
     "migrate": "node-pg-migrate up -m migrations",
     "migrate:down": "node-pg-migrate down -m migrations",
     "seed": "tsx src/seed.ts",
+    "access-code": "tsx src/scripts/accessCode.ts",
     "test": "DATABASE_URL=${TEST_DATABASE_URL:-postgres://localhost:5432/feeling_gamificacao_test} node-pg-migrate up -m migrations --no-check-order >/dev/null && vitest run"
   },
   "dependencies": {

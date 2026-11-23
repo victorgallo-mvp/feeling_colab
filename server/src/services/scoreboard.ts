@@ -7,6 +7,8 @@ import { pool } from '../db.js';
 import type { AuthUser } from '../middleware/auth.js';
 import { weeklyStreaks } from './streak.js';
 import { weekWinner } from './wheel.js';
+import { currentWeek, ranked, weekStandings } from './week.js';
+import { one } from '../db.js';
 
 export async function activeChips(tenantId: string, db: Queryable) {
   return query(
@@ -19,7 +21,10 @@ export async function activeChips(tenantId: string, db: Queryable) {
 export async function homePayload(user: AuthUser) {
   const db = pool;
   const cycle = await ensureOpenCycle(user.tenantId);
-  const [stats, chips, colleagues, missions, feedRows, bal, pairCounts, streaks, rewards, wheel] = await Promise.all([
+  const week = await currentWeek(user.tenantId, db);
+  const rules = (await one<{ coins_per_week: number; message_min_chars: number }>(`select coins_per_week, message_min_chars from tenants where id = $1`, [user.tenantId], db))!;
+  const [weekRows, stats, chips, colleagues, missions, feedRows, bal, pairCounts, streaks, rewards, wheel] = await Promise.all([
+    weekStandings(user.tenantId, week.starts_at, week.ends_at, db),
     cycleStats(cycle, db),
     activeChips(user.tenantId, db),
     query(
@@ -36,6 +41,7 @@ export async function homePayload(user: AuthUser) {
   // ranking ao vivo, visível para todos (empate = mesma posição)
   let rank = 0, last = -1, seen = 0;
   const ranking = stats.map((s) => { seen++; if (s.points_total !== last) { rank = seen; last = s.points_total; } return { user_id: s.user_id, name: s.name, avatar_url: s.avatar_url, area_name: s.area_name, rank, points_total: s.points_total, recognitions_received: s.recognitions_received, missions_completed: s.missions_completed, streak: streaks[s.user_id] ?? 0 }; });
+  const weekRanking = ranked(weekRows);
   const me = stats.find((s) => s.user_id === user.id);
   const part = participation(cycle, stats);
   const pair = Object.fromEntries(pairCounts.map((p) => [p.receiver_id, p.cnt]));
@@ -61,6 +67,13 @@ export async function homePayload(user: AuthUser) {
       rank: ranking.find((r) => r.user_id === user.id)?.rank ?? null,
     },
     ranking,
+    // Regras semanais do Feel Good: saldo que zera toda segunda e ranking só da semana corrente.
+    rules: { coins_per_week: rules.coins_per_week, message_min_chars: rules.message_min_chars },
+    week: {
+      key: week.week_key, starts_at: week.starts_at, ends_at: week.ends_at,
+      ranking: weekRanking,
+      my_rank: weekRanking.find((r) => r.user_id === user.id && r.coins > 0)?.rank ?? null,
+    },
     rewards,
     wheel: { ...wheel, can_spin: !!wheel.winner && wheel.winner.user_id === user.id && !wheel.spin && wheel.prizes.length > 0 },
     team: part,

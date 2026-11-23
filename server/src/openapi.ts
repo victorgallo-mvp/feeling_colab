@@ -8,7 +8,7 @@ const bearer = [{ bearerAuth: [] }];
 
 export const openapi = {
   openapi: '3.0.3',
-  info: { title: 'API Reconhecimento (white-label)', version: '0.1.0', description: 'Gamificação e reconhecimento entre colaboradores. Multi-tenant. Auth por magic link + JWT (1h) + refresh (30 dias).' },
+  info: { title: 'API Reconhecimento (white-label)', version: '0.1.0', description: 'Gamificação e reconhecimento entre colaboradores. Multi-tenant. Auth por código de acesso (ou magic link) + JWT (1h) + refresh (365 dias).' },
   servers: [{ url: '/api' }],
   components: { securitySchemes: { bearerAuth: { type: 'http', scheme: 'bearer', bearerFormat: 'JWT' } } },
   paths: {
@@ -17,7 +17,8 @@ export const openapi = {
     '/auth/click-login': { post: { tags: ['auth'], summary: 'Acesso por clique (só com tenant em auth_mode=click): escolhe a pessoa e recebe sessão', requestBody: body(S.clickLoginBody), responses: ok() } },
     '/public/users': { get: { tags: ['public'], summary: 'Pessoas para a tela de entrada por clique (vazio se o modo for magic link)', parameters: [{ name: 'tenant', in: 'query', schema: { type: 'string' } }], responses: ok() } },
     '/auth/verify': { post: { tags: ['auth'], summary: 'Troca token do link por accessToken + refreshToken', requestBody: body(S.verifyBody), responses: ok() } },
-    '/auth/refresh': { post: { tags: ['auth'], summary: 'Rotaciona refresh token (30 dias deslizantes)', requestBody: body(S.refreshBody), responses: ok() } },
+    '/auth/code': { post: { tags: ['auth'], summary: 'Entra com o código de acesso gerado pelo admin (uso único) e recebe a sessão de um ano', requestBody: body(S.codeLoginBody), responses: ok() } },
+    '/auth/refresh': { post: { tags: ['auth'], summary: 'Rotaciona refresh token (365 dias deslizantes, com tolerância de alguns minutos para o token anterior)', requestBody: body(S.refreshBody), responses: ok() } },
     '/auth/logout': { post: { tags: ['auth'], requestBody: body(S.refreshBody), responses: ok() } },
     '/me': { get: { tags: ['me'], security: bearer, summary: 'Perfil, tenant (marca) e chave VAPID', responses: ok() } },
     '/me/avatar': { post: { tags: ['me'], security: bearer, summary: 'Enviar minha foto (multipart, campo file, máx 8 MB; recorte quadrado 256px WebP)', responses: ok() }, delete: { tags: ['me'], security: bearer, summary: 'Remover minha foto', responses: ok() } },
@@ -44,6 +45,11 @@ export const openapi = {
     '/cycles/admin/inactive': { get: { tags: ['cycles'], security: bearer, summary: 'Quem está sem interagir há X dias', parameters: [{ name: 'days', in: 'query', schema: { type: 'integer', default: 7 } }], responses: ok() } },
     '/admin/users': { get: { tags: ['admin'], security: bearer, responses: ok() }, post: { tags: ['admin'], security: bearer, requestBody: body(S.createUserBody), responses: { 201: { description: 'Criado' } } } },
     '/admin/users/{id}': { patch: { tags: ['admin'], security: bearer, parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }], requestBody: body(S.updateUserBody), responses: ok() }, delete: { tags: ['admin'], security: bearer, parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }], responses: ok() } },
+    '/admin/users/bulk': { post: { tags: ['admin'], security: bearer, summary: 'Importar pessoas em lote (pula e-mails já cadastrados)', requestBody: body(S.bulkUsersBody), responses: { 201: { description: 'Criados' } } } },
+    '/admin/users/bulk-action': { post: { tags: ['admin'], security: bearer, summary: 'Ativar, desativar ou remover várias pessoas', requestBody: body(S.bulkActionBody), responses: ok() } },
+    '/admin/users/access-codes': { post: { tags: ['admin'], security: bearer, summary: 'Gerar códigos de acesso (uso único, 7 dias) para as pessoas escolhidas', requestBody: body(S.userIdsBody), responses: { 201: { description: 'Códigos' } } } },
+    '/admin/users/{id}/revoke-sessions': { post: { tags: ['admin'], security: bearer, summary: 'Desconectar todos os aparelhos da pessoa', parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }], responses: ok() } },
+    '/admin/fairplay': { get: { tags: ['admin'], security: bearer, summary: 'Jogo justo: trocas recíprocas, concentração e justificativas curtas', parameters: [{ name: 'weeks', in: 'query', schema: { type: 'integer', default: 4 } }], responses: ok() } },
     '/admin/areas': { get: { tags: ['admin'], security: bearer, responses: ok() }, post: { tags: ['admin'], security: bearer, requestBody: body(S.areaBody), responses: { 201: { description: 'Criada' } } } },
     '/admin/areas/{id}': { patch: { tags: ['admin'], security: bearer, parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }], requestBody: body(S.areaBody), responses: ok() }, delete: { tags: ['admin'], security: bearer, parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }], responses: ok() } },
     '/admin/chips': { get: { tags: ['admin'], security: bearer, responses: ok() }, post: { tags: ['admin'], security: bearer, requestBody: body(S.chipBody), responses: { 201: { description: 'Criado' } } } },

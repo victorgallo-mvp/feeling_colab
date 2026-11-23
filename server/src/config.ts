@@ -38,6 +38,8 @@ export const config = {
   vapid: { publicKey: env.VAPID_PUBLIC_KEY, privateKey: env.VAPID_PRIVATE_KEY, subject: env.VAPID_SUBJECT },
   cronEnabled: env.CRON_ENABLED !== 'false' && env.NODE_ENV !== 'test',
   accessTokenTtl: 60 * 60, // segundos
-  refreshTokenDays: 30,
+  refreshTokenDays: 365, // login único: o aparelho fica conectado por um ano, renovando a cada uso
+  refreshGraceMinutes: 5,
+  accessCodeDays: 7,
   magicLinkMinutes: 15,
 };

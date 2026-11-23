@@ -6,6 +6,7 @@ export const idParam = z.object({ id: uuid });
 export const magicLinkBody = z.object({ email: z.string().email().max(200), tenant: z.string().max(60).optional() });
 export const clickLoginBody = z.object({ userId: uuid, tenant: z.string().max(60).optional() });
 export const verifyBody = z.object({ token: z.string().min(10).max(200) });
+export const codeLoginBody = z.object({ code: z.string().trim().min(8).max(20) });
 export const refreshBody = z.object({ refreshToken: z.string().min(10).max(300) });
 
 export const giveRecognitionBody = z.object({
@@ -42,6 +43,18 @@ export const createUserBody = z.object({
 });
 export const updateUserBody = createUserBody.partial().extend({ isActive: z.boolean().optional() });
 
+export const bulkUsersBody = z.object({
+  users: z.array(z.object({
+    name: z.string().trim().min(2).max(100),
+    email: z.string().trim().email().max(200),
+    role: z.enum(['member', 'manager', 'admin']).optional(),
+    area: z.string().trim().max(60).optional().nullable(),
+  })).min(1).max(300),
+});
+export const userIdsBody = z.object({ ids: z.array(uuid).min(1).max(500) });
+export const bulkActionBody = z.object({ ids: z.array(uuid).min(1).max(500), action: z.enum(['activate', 'deactivate', 'remove']) });
+export const fairplayQuery = z.object({ weeks: z.coerce.number().int().min(1).max(26).default(4) });
+
 export const areaBody = z.object({ name: z.string().trim().min(2).max(60) });
 
 export const chipBody = z.object({
@@ -60,7 +73,9 @@ export const settingsBody = z.object({
   logoDarkUrl: z.string().url().max(500).or(z.string().regex(/^\/[^\s]*$/)).optional().nullable(),
   symbolUrl: z.string().url().max(500).or(z.string().regex(/^\/[^\s]*$/)).optional().nullable(),
   theme: z.enum(['light', 'dark', 'duo']).optional(),
-  authMode: z.enum(['magic_link', 'click']).optional(),
+  authMode: z.enum(['magic_link', 'click', 'invite']).optional(),
+  coinsPerWeek: z.number().int().min(0).max(1000).optional(),
+  messageMinChars: z.number().int().min(0).max(200).optional(),
   fontDisplay: z.enum(['default', 'big-shoulders']).optional(),
   primaryColor: z.string().regex(/^#[0-9a-fA-F]{6}$/).optional(),
   secondaryColor: z.string().regex(/^#[0-9a-fA-F]{6}$/).optional(),
@@ -85,11 +100,16 @@ export const rewardBody = z.object({
   description: z.string().trim().max(300).optional().nullable(),
   kind: z.enum(['individual', 'team', 'wheel']),
   weight: z.number().int().min(1).max(100).optional(),
+  effect: z.enum(['prize', 'double_next']).optional(),
   isActive: z.boolean().optional(),
   sortOrder: z.number().int().min(0).max(999).optional(),
 });
 export const updateRewardBody = rewardBody.partial();
-export const deliveredBody = z.object({ delivered: z.boolean() });
+export const deliveredBody = z.object({
+  delivered: z.boolean().optional(),
+  status: z.enum(['pending', 'scheduled', 'delivered']).optional(),
+  note: z.string().trim().max(300).optional().nullable(),
+});
 export const templateBody = z.object({
   title: z.string().trim().min(3).max(120), description: z.string().trim().max(500).optional().nullable(),
   points: z.number().int().min(1).max(1000), recurrence: z.enum(['once', 'weekly', 'monthly']),

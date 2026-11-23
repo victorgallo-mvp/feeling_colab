@@ -6,7 +6,10 @@ import { applyTheme, logoFor } from '../../lib/theme';
 import { getTokens, setTokens } from '../../lib/tokens';
 import { firstName } from '../../lib/format';
 
-/** Entrada: no modo por clique, uma tela preta com as pessoas; um clique e entrou. */
+/**
+ * Entrada. Por clique: uma tela preta com as pessoas. Por código: a pessoa digita uma vez o código que o
+ * administrador gerou (ou abre o link /entrar?c=CÓDIGO) e o aparelho fica conectado por um ano.
+ */
 export function LoginPage() {
   const nav = useNavigate();
   const [tenant, setTenant] = useState<any>(null);
@@ -17,6 +20,9 @@ export function LoginPage() {
   const [people, setPeople] = useState<any[] | null>(null);
   const [useEmail, setUseEmail] = useState(false);
   const [entering, setEntering] = useState<string | null>(null);
+  const [code, setCode] = useState(() => new URLSearchParams(window.location.search).get('c') ?? '');
+  const [codeBusy, setCodeBusy] = useState(false);
+  const autoTried = useRef(false);
 
   useEffect(() => { if (getTokens()) nav('/', { replace: true }); }, [nav]);
   useEffect(() => {
@@ -32,6 +38,24 @@ export function LoginPage() {
     catch (e: any) { setErr(e?.message ?? 'Não foi possível entrar'); setEntering(null); }
   }
   const clickMode = tenant?.auth_mode === 'click' && !useEmail;
+  // O link com código vale em qualquer modo; sem link, a tela de código aparece quando o tenant usa esse modo.
+  const codeMode = !useEmail && (tenant?.auth_mode === 'invite' || (!!code && tenant?.auth_mode !== 'click') || autoTried.current);
+
+  async function codeLogin(value: string) {
+    setCodeBusy(true); setErr(null);
+    try { const t = await api('/auth/code', { method: 'POST', json: { code: value } }); setTokens(t); window.dispatchEvent(new Event('auth:login')); nav('/', { replace: true }); }
+    catch (e: any) { setErr(e?.message ?? 'Não foi possível entrar'); setCodeBusy(false); }
+  }
+  // Link de acesso (/entrar?c=CÓDIGO): entra direto, uma única tentativa (o código é de uso único).
+  useEffect(() => {
+    if (autoTried.current || getTokens()) return;
+    const c = new URLSearchParams(window.location.search).get('c');
+    if (!c) return;
+    autoTried.current = true;
+    window.history.replaceState(null, '', '/entrar');
+    codeLogin(c);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   async function submit(e: React.FormEvent) {
     e.preventDefault(); setErr(null); setState('sending');
@@ -48,7 +72,18 @@ export function LoginPage() {
           {tenant && logoFor(tenant) ? <img src={logoFor(tenant)!} alt={tenant.name} className="h-8 w-auto max-w-[200px] object-contain" />
             : <span className="font-display text-2xl">{tenant?.name ?? ''}</span>}
         </div>
-        {clickMode ? (
+        {codeMode ? (
+          <form onSubmit={(e) => { e.preventDefault(); codeLogin(code); }} className="max-w-sm space-y-4">
+            <h1 className="font-display text-4xl leading-none sm:text-5xl">Entrar</h1>
+            <p className="text-base text-fg-muted">Digite o código de acesso que você recebeu. É só desta vez: este aparelho fica conectado.</p>
+            <label className="block text-sm"><span className="mb-1 block text-fg-2">Código de acesso</span>
+              <input className={`${inputCls} h-12 text-center font-mono text-lg uppercase tracking-[0.25em]`} required autoFocus autoComplete="one-time-code" autoCapitalize="characters" spellCheck={false}
+                maxLength={12} value={code} onChange={(e) => setCode(e.target.value.toUpperCase())} placeholder="XXXX-XXXX" /></label>
+            {err && <div className="text-sm text-danger" role="alert">{err}</div>}
+            <Button type="submit" size="lg" className="w-full" loading={codeBusy} disabled={code.replace(/[^a-zA-Z0-9]/g, '').length < 8}>Entrar</Button>
+            <p className="text-xs text-fg-faint">Não tem código, ou ele já foi usado? Peça um novo ao administrador.</p>
+          </form>
+        ) : clickMode ? (
           <div>
             <h1 className="font-display text-4xl leading-none sm:text-5xl">Quem é você?</h1>
             <p className="mt-3 text-base text-fg-muted">Clique na sua foto para entrar.</p>

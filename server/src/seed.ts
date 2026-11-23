@@ -1,6 +1,6 @@
 /**
  * Seed do piloto: tenant Feeling, 15 usuários (1 admin Iran, 2 gestores, 12 colaboradores),
- * 6 chips, 4 missões, ciclo aberto e reconhecimentos de exemplo.
+ * as 6 atitudes do Feel Good, os 10 prêmios da roleta, 4 missões, ciclo aberto e reconhecimentos de exemplo.
  * Idempotente: se o tenant já existir, não faz nada (use SEED_RESET=true pra recriar).
  */
 import { pool, query, one, tx } from './db.js';
@@ -27,8 +27,8 @@ async function main() {
 
   await tx(async (db) => {
     const tenant = await one(
-      `insert into tenants (slug, name, primary_color, secondary_color, theme, font_display, logo_url, logo_dark_url, symbol_url, auth_mode, coins_per_cycle, recognition_cost, max_per_receiver_per_cycle)
-       values ($1,$2,$3,$4,$5,$6,$7,$8,$9,'click',0,1,0) returning *`,
+      `insert into tenants (slug, name, primary_color, secondary_color, theme, font_display, logo_url, logo_dark_url, symbol_url, auth_mode, coins_per_cycle, recognition_cost, max_per_receiver_per_cycle, coins_per_week, message_min_chars)
+       values ($1,$2,$3,$4,$5,$6,$7,$8,$9,'click',0,1,0,5,10) returning *`,
       [SLUG, 'Feeling', '#04D81A', '#04D81A', 'duo', 'big-shoulders', '/brand/feeling/logo-light-bg.png', '/brand/feeling/logo-dark-bg.png', '/brand/feeling/symbol-512.png'], db);
     const tid = tenant!.id;
 
@@ -63,16 +63,9 @@ async function main() {
       users[name] = u!.id;
     }
 
-    // Chips derivados dos 10 princípios do quadro de cultura da Feeling (sem cor própria: paleta oficial é verde + preto + branco)
-    const chipDefs: Array<[string, string]> = [
-      ['Postura de dono', '🧭'],
-      ['Enfrentou de frente', '🥊'],
-      ['Criou encantamento', '✨'],
-      ['Fez acontecer', '⚡'],
-      ['Trabalhou com empatia', '🤝'],
-      ['Deu feedback de verdade', '🗣️'],
-      ['Ajudou a crescer', '📈'],
-      ['Melhoria contínua', '🔁'],
+    // As 6 atitudes do programa Feel Good (etiqueta opcional da moeda)
+    const chipDefs: Array<[string, string | null]> = [
+      ['Colaboração', null], ['Proatividade', null], ['Comprometimento', null], ['Atitude de dono', null], ['Resolução', null], ['Excelência', null],
     ];
     const chips: string[] = [];
     let i = 0;
@@ -135,35 +128,45 @@ async function main() {
       ['Vale-presente R$ 200', 'Para o 1º lugar da temporada.', 'individual', 1],
       ['Sexta de folga', 'Para o 2º lugar da temporada.', 'individual', 1],
       ['Happy hour por conta da casa', 'Se o time bater a meta coletiva.', 'team', 1],
-      ['Café da manhã especial', null, 'wheel', 3],
-      ['Sair 2h mais cedo numa sexta', null, 'wheel', 3],
-      ['Almoço com o Iran', null, 'wheel', 2],
-      ['Vale iFood R$ 50', null, 'wheel', 2],
-      ['Escolhe a playlist da semana', null, 'wheel', 4],
-      ['Dia de home office extra', null, 'wheel', 1],
+    ];
+    // Roleta Feeling: os 10 prêmios do deck. Peso menor = mais raro. "Dobre e passe" não paga: dobra o prêmio do próximo Destaque.
+    const wheel: Array<[string, string | null, number, 'prize' | 'double_next']> = [
+      ['R$ 100 no Pix', null, 1, 'prize'],
+      ['R$ 50 no Pix', null, 2, 'prize'],
+      ['1 dia de Home Office', 'Data combinada com a liderança.', 2, 'prize'],
+      ['1 dia de folga', 'Data combinada com a liderança.', 1, 'prize'],
+      ['Folga sexta após o almoço', 'Data combinada com a liderança.', 2, 'prize'],
+      ['Vale-energético (um fardo)', null, 3, 'prize'],
+      ['Vale-cinema (2 pessoas)', null, 3, 'prize'],
+      ['Vale-pizza', null, 3, 'prize'],
+      ['Prêmio surpresa (caixa misteriosa)', null, 3, 'prize'],
+      ['Dobre e passe para o próximo', 'O prêmio não sai nesta semana: o próximo Destaque leva em dobro.', 2, 'double_next'],
     ];
     let ri = 0;
     for (const [title, desc, kind, weight] of rewards) {
       await query(`insert into rewards (tenant_id, title, description, kind, weight, sort_order) values ($1,$2,$3,$4,$5,$6)`, [tid, title, desc, kind, weight, ri++], db);
     }
+    for (const [title, desc, weight, effect] of wheel) {
+      await query(`insert into rewards (tenant_id, title, description, kind, weight, sort_order, effect) values ($1,$2,$3,'wheel',$4,$5,$6)`, [tid, title, desc, weight, ri++, effect], db);
+    }
 
-    // reconhecimentos de exemplo (respeitando saldo 20 / custo 5 / máx 3 por pessoa)
+    // reconhecimentos de exemplo (toda moeda com justificativa, como manda o programa)
     const recs: Array<[string, string, number, string | null, number]> = [
       ['Camila Rocha', 'Ana Beatriz', 2, 'Virou a noite com o cliente e entregou a apresentação impecável.', 3],
-      ['Bruno Lima', 'Ana Beatriz', 0, null, 2],
+      ['Bruno Lima', 'Ana Beatriz', 0, 'Cobriu meu atendimento na terça sem eu precisar pedir duas vezes.', 2],
       ['Diego Martins', 'Fernanda Souza', 2, 'A campanha ficou acima do briefing, cliente aprovou de primeira.', 2],
-      ['Eduardo Reis', 'Fernanda Souza', 7, null, 1],
+      ['Eduardo Reis', 'Fernanda Souza', 5, 'Refez a peça em uma hora e ficou melhor que a primeira versão.', 1],
       ['Gabriel Nunes', 'Helena Costa', 4, 'Me ajudou a destravar o relatório de mídia mesmo sem ser dela.', 5],
       ['Helena Costa', 'Gabriel Nunes', 3, 'Puxou a reunião de segunda quando todo mundo tava desanimado.', 4],
       ['Iran', 'Camila Rocha', 1, 'Segurou o cliente mais difícil do mês com uma calma que eu não teria.', 6],
-      ['Iran', 'Diego Martins', 0, null, 6],
+      ['Iran', 'Diego Martins', 0, 'Parou o que estava fazendo para ajudar o atendimento a fechar o briefing.', 6],
       ['Juliana Alves', 'Lucas Ferreira', 3, 'A ideia do dashboard virou entrega pro cliente.', 1],
-      ['Lucas Ferreira', 'Juliana Alves', 5, null, 0],
+      ['Lucas Ferreira', 'Juliana Alves', 5, 'Montou o cronograma do cliente novo antes de alguém pedir.', 0],
       ['Marina Dias', 'Bruno Lima', 0, 'Cuidou do cliente enquanto eu estava de folga, sem reclamar.', 1],
-      ['Rafael Oliveira', 'Carla Mendes', 6, null, 0],
-      ['Ana Beatriz', 'Camila Rocha', 6, null, 2],
+      ['Rafael Oliveira', 'Carla Mendes', 2, 'Assumiu a entrega atrasada e fechou no prazo combinado.', 0],
+      ['Ana Beatriz', 'Camila Rocha', 3, 'Entrou na reunião difícil comigo e segurou a conversa com o cliente.', 2],
       ['Carla Mendes', 'Eduardo Reis', 4, 'Revisou meu layout às 22h sem eu pedir.', 3],
-      ['Fernanda Souza', 'Rafael Oliveira', 7, null, 1],
+      ['Fernanda Souza', 'Rafael Oliveira', 4, 'Achou o erro no arquivo final antes de ir para a gráfica.', 1],
     ];
     const recIds: string[] = [];
     for (const [from, to, chip, msg, daysAgo] of recs) {
