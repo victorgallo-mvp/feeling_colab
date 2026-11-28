@@ -28,7 +28,7 @@ export interface Home {
   feed: FeedItem[];
   ranking: RankRow[];
   rules: { coins_per_week: number; message_min_chars: number };
-  week: { key: string; starts_at: string; ends_at: string; ranking: WeekRow[]; my_rank: number | null };
+  week: { key: string; starts_at: string; ends_at: string; locks_at: string | null; locked: boolean; lock_label: string | null; ranking: WeekRow[]; my_rank: number | null };
   chips: Chip[];
   wheel: Wheel;
 }

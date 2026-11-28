@@ -7,7 +7,7 @@ import { pool } from '../db.js';
 import type { AuthUser } from '../middleware/auth.js';
 import { weeklyStreaks } from './streak.js';
 import { weekWinner } from './wheel.js';
-import { currentWeek, ranked, weekStandings } from './week.js';
+import { currentWeek, lockLabel, ranked, weekStandings } from './week.js';
 import { one } from '../db.js';
 
 export async function activeChips(tenantId: string, db: Queryable) {
@@ -71,6 +71,8 @@ export async function homePayload(user: AuthUser) {
     rules: { coins_per_week: rules.coins_per_week, message_min_chars: rules.message_min_chars },
     week: {
       key: week.week_key, starts_at: week.starts_at, ends_at: week.ends_at,
+      // Trava das moedas (ex.: sexta 15h): quando fecha nesta semana, se já fechou e o rótulo para a tela.
+      locks_at: week.locks_at, locked: week.locked, lock_label: week.locks_at && week.lock_dow ? lockLabel(week.lock_dow, week.lock_hour) : null,
       ranking: weekRanking,
       my_rank: weekRanking.find((r) => r.user_id === user.id && r.coins > 0)?.rank ?? null,
     },

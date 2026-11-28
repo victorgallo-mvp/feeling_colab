@@ -7,7 +7,7 @@ import { firstName } from '../../lib/format';
 
 /**
  * Dar uma moeda: clique na pessoa, conte o que ela fez e envie.
- * Com regra semanal, mostra quantas moedas restam (zeram toda segunda) e exige a justificativa.
+ * Com regra semanal, mostra quantas moedas restam (zeram toda segunda; com trava, fecham antes, ex.: sexta 15h) e exige a justificativa.
  * Enter no texto envia; Shift+Enter quebra linha; Esc cancela.
  */
 export function Recognize({ data }: { data: Home }) {
@@ -18,6 +18,7 @@ export function Recognize({ data }: { data: Home }) {
   const perWeek = data.rules.coins_per_week;
   const balance = data.me.balance;
   const empty = balance !== null && balance < data.cycle.recognition_cost;
+  const { locked, lock_label: lockLabel } = data.week;
 
   useEffect(() => {
     if (!sent) return;
@@ -48,8 +49,9 @@ export function Recognize({ data }: { data: Home }) {
             ))}
           </div>
           <p className="text-base text-fg-muted">
-            {empty ? 'Suas moedas da semana acabaram. Elas voltam na segunda.'
-              : <>{balance === 1 ? 'Resta' : 'Restam'} <b className="text-fg">{balance} de {perWeek}</b> {perWeek === 1 ? 'moeda' : 'moedas'} esta semana. Elas zeram na segunda.</>}
+            {locked ? `As moedas desta semana fecharam na ${lockLabel}. Elas voltam na segunda.`
+              : empty ? 'Suas moedas da semana acabaram. Elas voltam na segunda.'
+              : <>{balance === 1 ? 'Resta' : 'Restam'} <b className="text-fg">{balance} de {perWeek}</b> {perWeek === 1 ? 'moeda' : 'moedas'} esta semana. {lockLabel ? `Elas fecham na ${lockLabel}.` : 'Elas zeram na segunda.'}</>}
           </p>
         </div>
       ) : (

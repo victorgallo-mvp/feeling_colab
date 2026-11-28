@@ -247,7 +247,7 @@ function RulesPanel() {
   if (!s.data) return <Spinner />;
   return (
     <form onSubmit={(e) => { e.preventDefault(); const f = new FormData(e.currentTarget); save.mutate({ coinsPerWeek: Number(f.get('coinsPerWeek')), messageMinChars: Number(f.get('messageMinChars')) }); }}>
-      <Section title="Regras do programa" subtitle="As moedas sempre zeram na virada da semana (segunda-feira, 00:00) e nunca acumulam. Mudanças aqui valem na hora.">
+      <Section title="Regras do programa" subtitle={`O saldo volta cheio na virada da semana (segunda-feira, 00:00) e nunca acumula.${s.data.coins_lock_dow ? ` As moedas fecham antes: ${['segunda', 'terça', 'quarta', 'quinta', 'sexta', 'sábado', 'domingo'][s.data.coins_lock_dow - 1]} às ${s.data.coins_lock_hour}h.` : ''} Mudanças aqui valem na hora.`}>
         <div className="grid gap-3 sm:grid-cols-2">
           <Field label="Moedas por pessoa, por semana" hint="Padrão do programa: 5. Zero desliga o limite semanal."><input name="coinsPerWeek" type="number" min={0} max={1000} required className={inputCls} defaultValue={s.data.coins_per_week} /></Field>
           <Field label="Tamanho mínimo da justificativa" hint="Em caracteres. Zero deixa o texto opcional."><input name="messageMinChars" type="number" min={0} max={200} required className={inputCls} defaultValue={s.data.message_min_chars} /></Field>

@@ -3,7 +3,7 @@ import type { NotificationType } from './provider.js';
 export function render(type: NotificationType, d: Record<string, any>): { title: string; body: string; deepLink: string } {
   switch (type) {
     case 'balance_reminder':
-      return { title: `Você ainda tem ${d.balance} ${d.balance === 1 ? 'moeda' : 'moedas'} pra dar`, body: d.weekly ? 'Elas zeram no domingo e não acumulam. Alguém fez o time ficar melhor? Reconheça.' : `Elas expiram no fim da ${d.cycleName}. Reconheça um colega em 2 cliques.`, deepLink: '/?focus=recognize' };
+      return { title: `Você ainda tem ${d.balance} ${d.balance === 1 ? 'moeda' : 'moedas'} pra dar`, body: d.weekly ? `${d.lockLabel ? `Elas fecham na ${d.lockLabel}` : 'Elas zeram no domingo'} e não acumulam. Alguém fez o time ficar melhor? Reconheça.` : `Elas expiram no fim da ${d.cycleName}. Reconheça um colega em 2 cliques.`, deepLink: '/?focus=recognize' };
     case 'mission_new':
       return { title: `Nova missão: ${d.title}`, body: `Vale ${d.points} pontos. Marque "Concluí" quando terminar.`, deepLink: `/?focus=missions&mission=${d.missionId}` };
     case 'mission_validated':

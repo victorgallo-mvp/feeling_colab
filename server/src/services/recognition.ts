@@ -11,20 +11,22 @@ export interface GiveInput { tenantId: string; giverId: string; receiverId: stri
 export const unlimited = (n: number) => n <= 0;
 
 /**
- * Saldo para dar. Com `coins_per_week > 0` no tenant vale a regra semanal (zera toda segunda, não acumula);
+ * Saldo para dar. Com `coins_per_week > 0` no tenant vale a regra semanal (zera toda segunda, não acumula,
+ * e trava no dia/hora configurados, se houver);
  * senão, o saldo da temporada.
  */
 export async function giverBalance(cycle: Cycle, giverId: string, db: any) {
   const t = await one<{ coins_per_week: number }>(`select coins_per_week from tenants where id = $1`, [cycle.tenant_id], db);
   if (t && t.coins_per_week > 0) {
     const w = await weekSpent(cycle.tenant_id, giverId, db);
-    return { spent: w.spent, given: w.given, balance: Math.max(0, t.coins_per_week - w.spent) as number | null, weekly: true };
+    // Depois da trava da semana (ex.: sexta 15h) o saldo é zero até a virada de segunda.
+    return { spent: w.spent, given: w.given, balance: (w.locked ? 0 : Math.max(0, t.coins_per_week - w.spent)) as number | null, weekly: true, locked: w.locked, lockLabel: w.lockLabel };
   }
   const r = await one<{ spent: number; cnt: number }>(
     `select coalesce(sum(coins_spent),0)::int as spent, count(*)::int as cnt from recognitions where cycle_id = $1 and giver_id = $2 and deleted_at is null`,
     [cycle.id, giverId], db,
   );
-  return { spent: r!.spent, given: r!.cnt, balance: unlimited(cycle.coins_per_user) ? null : Math.max(0, cycle.coins_per_user - r!.spent), weekly: false };
+  return { spent: r!.spent, given: r!.cnt, balance: unlimited(cycle.coins_per_user) ? null : Math.max(0, cycle.coins_per_user - r!.spent), weekly: false, locked: false, lockLabel: null };
 }
 
 async function minMessageChars(tenantId: string, db?: any) {
@@ -56,6 +58,7 @@ export async function giveRecognition(input: GiveInput) {
     if (min > 0 && (message?.length ?? 0) < min) throw messageRequired(min);
 
     const bal = await giverBalance(cycle, input.giverId, db);
+    if (bal.locked) throw conflict(`As moedas desta semana fecharam na ${bal.lockLabel}. Elas voltam na segunda.`, 'week_locked');
     if (bal.balance !== null && bal.balance < cycle.recognition_cost) {
       throw conflict(bal.weekly
         ? 'Suas moedas da semana acabaram. Elas voltam na segunda.'

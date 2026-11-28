@@ -42,6 +42,7 @@ function Pairs({ items, numbered }: { items: [string, string][]; numbered?: bool
 export function RulesPage() {
   const home = useHome();
   const perWeek = home.data?.rules.coins_per_week ?? 0;
+  const lockLabel = home.data?.week.lock_label ?? null;
   const prizes = home.data?.wheel.prizes ?? [];
   return (
     <div className="space-y-12">
@@ -53,7 +54,9 @@ export function RulesPage() {
       <Block title={perWeek > 0 ? `Cada pessoa começa a semana com ${perWeek} ${perWeek === 1 ? 'moeda' : 'moedas'}` : 'As moedas'}>
         <Pairs items={[
           ['Para distribuir entre colegas', 'Use ao longo da semana, quando uma atitude fizer a diferença.'],
-          ['Renovação semanal', 'As moedas zeram toda segunda-feira e não acumulam para a semana seguinte.'],
+          ['Renovação semanal', lockLabel
+            ? `Dá para dar moedas até ${lockLabel}. Depois disso elas fecham, e o saldo volta cheio na segunda-feira, sem acumular.`
+            : 'As moedas zeram toda segunda-feira e não acumulam para a semana seguinte.'],
           ['Sem valor financeiro', 'Moedas são reconhecimento, não dinheiro ou crédito.'],
         ]} />
       </Block>

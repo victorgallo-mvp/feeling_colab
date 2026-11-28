@@ -42,6 +42,37 @@ describe('programa Feel Good', () => {
       expect((await give(a, b)).body.balance).toBe(4);
     });
 
+    it('trava semanal: depois do dia/hora configurados ninguém dá moeda e o saldo aparece zerado até a virada', async () => {
+      // segunda 00h: a trava já passou em qualquer momento da semana corrente
+      await query(`update tenants set coins_lock_dow = 1, coins_lock_hour = 0 where id = $1`, [tenant.id]);
+      const home = await as(a.token).get('/api/me/home');
+      expect(home.body.me.balance).toBe(0);
+      expect(home.body.week.locked).toBe(true);
+      expect(home.body.week.lock_label).toBe('segunda às 0h');
+      const r = await give(a, b);
+      expect(r.status).toBe(409);
+      expect(r.body.code).toBe('week_locked');
+      expect((await one<{ n: number }>(`select count(*)::int n from recognitions where tenant_id = $1`, [tenant.id]))!.n).toBe(0);
+    });
+
+    it('trava semanal: só vale a partir da semana configurada; antes disso, tudo como sempre', async () => {
+      await query(`update tenants set coins_lock_dow = 1, coins_lock_hour = 0, coins_lock_from = (now() + interval '14 days')::date where id = $1`, [tenant.id]);
+      const home = await as(a.token).get('/api/me/home');
+      expect(home.body.me.balance).toBe(5);
+      expect(home.body.week).toMatchObject({ locked: false, locks_at: null, lock_label: null });
+      expect((await give(a, b)).status).toBe(201);
+    });
+
+    it('trava semanal: antes do horário da trava as moedas seguem liberadas', async () => {
+      // domingo 23h: ainda não chegou (salvo na última hora do domingo, quando a trava de fato vale)
+      await query(`update tenants set coins_lock_dow = 7, coins_lock_hour = 23 where id = $1`, [tenant.id]);
+      const { late } = (await one<{ late: boolean }>(`select (extract(isodow from now() at time zone timezone) = 7 and extract(hour from now() at time zone timezone) = 23) as late from tenants where id = $1`, [tenant.id]))!;
+      const home = await as(a.token).get('/api/me/home');
+      expect(home.body.week.locked).toBe(late);
+      expect(home.body.week.lock_label).toBe('domingo às 23h');
+      expect((await give(a, b)).status).toBe(late ? 409 : 201);
+    });
+
     it('não vaza saldo em requisições concorrentes', async () => {
       const results = await Promise.all(Array.from({ length: 9 }, (_, i) => give(a, i % 2 ? b : c)));
       expect(results.filter((r) => r.status === 201).length).toBe(5);

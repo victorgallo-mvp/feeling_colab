@@ -28,7 +28,7 @@ export async function runHourly(now = new Date()) {
       for (const u of users) {
         const bal = await giverBalance(cycle, u.id, (await import('../db.js')).pool);
         if (bal.balance !== null && bal.balance >= cycle.recognition_cost && !(await sentRecently(u.id, 'balance_reminder', 20))) {
-          await notify(u.id, 'balance_reminder', { balance: bal.balance, cycleName: cycle.name, weekly });
+          await notify(u.id, 'balance_reminder', { balance: bal.balance, cycleName: cycle.name, weekly, lockLabel: bal.lockLabel });
         }
       }
     }
